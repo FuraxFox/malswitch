@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/FuraxFox/posturotron/internal/malswitch/submissions"
+	"github.com/FuraxFox/malswitch/internal/submissions"
 )
 
-func requestHandler(w http.ResponseWriter, r *http.Request) {
+func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 
@@ -37,8 +37,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
 	// Get the TLP variable
 	tlp := r.FormValue("TLP")
 
-	sub := submissions.Create(filename, tlp, TEMP_DIR)
-	destFPath := sub.TempFilepath()
+	sub, err := submissions.Create(filename, tlp, TEMP_DIR)
+	if err != nil {
+		http.Error(w, "Error initializing submission", http.StatusInternalServerError)
+		return
+	}
+	destFPath := sub.TempFilePath()
 
 	// Create a new file on disk
 	newFile, err := os.Create(destFPath)
@@ -55,9 +59,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = sub.Hash(file)
+	err = sub.Hash()
 	if err != nil {
 		http.Error(w, "Error calculating hash", http.StatusInternalServerError)
+		return
+	}
+
+	err = sub.Enqueue(QUEUE_DIR)
+	if err != nil {
+		http.Error(w, "Failed to enqueue", http.StatusInternalServerError)
 		return
 	}
 

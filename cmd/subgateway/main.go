@@ -12,10 +12,11 @@ import (
 
 var LISTEN_PATH string = "/submission-queue"
 var LISTEN_ADDR string = "127.0.0.1:8080"
-var QUEUE_DIR string = "../../var/data/submissions"
-var TEMP_DIR string = "../../var/data/temp"
+var QUEUE_DIR string = "var/data/submissions"
+var TEMP_DIR string = "var/data/temp"
 
 func main() {
-	http.HandleFunc(LISTEN_PATH, requestHandler)
+
+	http.DefaultServeMux.HandleFunc(LISTEN_PATH, SubmissionRequestHandler)
 	log.Fatal(http.ListenAndServe(LISTEN_ADDR, nil))
 }
