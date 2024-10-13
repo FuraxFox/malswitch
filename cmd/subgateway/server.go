@@ -74,7 +74,10 @@ func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("TLP", tlp)
 	fmt.Println("Filename", filename)
 	fmt.Println("UUID", sub.UUID)
+	fmt.Println("MD5 Hash:", sub.MD5)
+	fmt.Println("SHA1 Hash:", sub.SHA1)
 	fmt.Println("SHA256 Hash:", sub.SHA256)
+	fmt.Println("SHA512 Hash:", sub.SHA512)
 
 	fmt.Fprintf(w, "File uploaded successfully: %s\n", handler.Filename)
 }

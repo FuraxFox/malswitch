@@ -6,19 +6,28 @@
 package submissions
 
 import (
+	"crypto/md5"
+	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/sha512"
 	"fmt"
+	"hash"
 	"io"
+	"io/ioutil"
 	"os"
 
 	"path/filepath"
 
 	"github.com/google/uuid"
+	"gopkg.in/yaml.v2"
 )
 
 type Submission struct {
 	UUID     string
+	MD5      string
+	SHA1     string
 	SHA256   string
+	SHA512   string
 	TLP      string
 	Filename string
 	TempPath string
@@ -50,6 +59,18 @@ func Create(sampleFilename string, sampleTLP string, tempDir string) (*Submissio
 	return &s, nil
 }
 
+func computeHash(f *os.File, algo hash.Hash) (string, error) {
+
+	_, err := io.Copy(algo, f)
+	if err != nil {
+		return "", err
+	}
+	hashBytes := algo.Sum(nil)
+	hashString := fmt.Sprintf("%x", hashBytes)
+
+	return hashString, nil
+}
+
 // Calculate the SHA256 hash of the file
 func (s *Submission) Hash() error {
 
@@ -59,16 +80,29 @@ func (s *Submission) Hash() error {
 	}
 	defer f.Close()
 
-	hash := sha256.New()
-	_, err = io.Copy(hash, f)
+	hashString, err := computeHash(f, md5.New())
 	if err != nil {
 		return err
 	}
+	s.MD5 = hashString
 
-	hashBytes := hash.Sum(nil)
-	hashString := fmt.Sprintf("%x", hashBytes)
+	hashString, err = computeHash(f, sha1.New())
+	if err != nil {
+		return err
+	}
+	s.SHA1 = hashString
 
+	hashString, err = computeHash(f, sha256.New())
+	if err != nil {
+		return err
+	}
 	s.SHA256 = hashString
+
+	hashString, err = computeHash(f, sha512.New())
+	if err != nil {
+		return err
+	}
+	s.SHA512 = hashString
 
 	return nil
 }
@@ -99,7 +133,24 @@ func (s *Submission) Enqueue(queueRoot string) error {
 		return err
 	}
 
-	// TODO create manifest
+	s.SaveManifest(queuePath)
 	// TODO create history
+	return nil
+}
+
+func (s *Submission) SaveManifest(dir string) error {
+	// TODO
+	yamlData, err := yaml.Marshal(&s)
+	if err != nil {
+		return err
+	}
+
+	filePath := filepath.Join(dir, "Manifest.yaml")
+
+	err = ioutil.WriteFile(filePath, yamlData, 0644)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
