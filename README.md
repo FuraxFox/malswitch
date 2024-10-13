@@ -33,43 +33,49 @@ Learn by trying a software system that allow to easily manage a collection of ma
 ## Architecture
 
 ```
-       <user>                          <user>                                                  <user>                                                <user>
-          |                              ^                                                       ^                                                      ^
-          |                              |                                                       |                                                      |
-    (submit malware)               (check status)                                                V                                                      |
-          |                              |                                               [catalog browser]                                              |
-[ submission gateway ]                   |                                                       |                                                      |
-          |                              |                                    (read and update catalog, and collection)             (select samples to share and sharing circles)
-          V                              |                                                       |                                                      |
-  <submission queue>                     |                                                       |                                                      |
-          |                              V                                                       |                                                      |
-          +----(process bin)---->[submission analyzer]----(reference)-----<storage catalog>------+                                                      |
-                                          |                                                      |                                                      V
-                            (package binary and meta infos)                                      +-----------( update collection and catalog)------[Exchanger]----<P2P Network>
-                                          |                                                      |                                                      ^
-                                <collection storage>---------------------------------------------+                                                      |
-                                                                                                                                                        V
-                                                                                                                                                <community database>
+       <user>                        <user>                                           <user>                                       <user>
+          |                            ^                                                ^                                             ^
+          |                            |                                                |                                             |
+    (submit malware)             (check status)                                         V                                             |
+          |                            |                                        [catalog browser]                                     |
+[ submission gateway ]                 |                                                |                                             |
+          |                            |                             (read and update catalog, and collection)  (select samples to share and sharing circles)
+          V                            |                                                |                                             |
+  <submission queue>                   |                                                |                                             |
+          |                            V                                                |                                             |
+          +---(process bin)--->[submission analyzer]--(reference)--<storage catalog>----+                                             |
+                                       |                                                |                                             V
+                         (package binary and meta infos)                                +-----( update collection and catalog)---[Exchanger]---<P2P Network>
+                                       |                                                |                                             ^
+                             <collection storage>---------------------------------------+                                             |
+                                                                                                                                      V
+                                                                                                                              <community database>
 ```  
+
+-----
+
 ## Directories
 
 ```
            <WORKROOT>
                |
-               +---data---submissions--<UUID(code1)
-               |      |            |        \---History.yaml
-               |      |            |         \--Manifest.yaml
-               |      |            |          \-<hex(SHA256)>.bin
-               |      |            \---<UUID(code2)>--...
-               |      |             \--<UUID(code3)>--...
+               +---data---submissions---<UUID(code1)
+               |      |            |       \---History.yaml
+               |      |            |        \--Manifest.yaml
+               |      |            |         \-<hex(SHA256)>.bin
+               |      |            \
+               |      |             \---<UUID(code2)>--...
+               |      |              \--<UUID(code3)>--...
                |      +---temp               
-               |      \
-               |       \-collection-----<sha256(code1)>--...
-               |             \            \---History.yaml
-               |              \            \--Manifest.yaml
-               |               \            \-<hex(SHA256)>.bin
-               |                \-----<sha256(code2)>--...
-               |                 \----<sha256(code3)>--...
+               |      |
+               |      \-collection----<sha256(code1)>
+               |             \          \---History.yaml
+               |              \          \--Manifest.yaml
+               |               \          \-<hex(SHA256)>.bin
+               |                \
+               |                 \-----<sha256(code2)>--...
+               |                  \----<sha256(code3)>--...
+               |
                +---databases--catalog.db
                |     \-------community.db
                |
@@ -80,9 +86,11 @@ Learn by trying a software system that allow to easily manage a collection of ma
                    \    \--exchanger-<YYYY>-<MM>.log
                     \
                      \--share--<TODO>          
-``` 
+```
 
-## Components
+-----
+
+## Components
 
 ### Submission gateway
 
@@ -102,6 +110,8 @@ Upon reception:
 
 * configuration `$CONFIGDIR/malwswitch/subgateway.ini`
 * clé de signature `$CONFIGDIR/malwswitch/malswitch-id.ed25519` 
+
+---
 
 ### Submission analyzer
 
@@ -133,6 +143,8 @@ Submission analyzer jobs is to process new files:
 * clé de signature `$CONFIGDIR/malwswitch/malswitch-id.ed25519` 
 * base de donnée de catalogue `$WORKDIR/databases/catalog.db`
 
+---
+
 ### Exchanger
 
 Allows share on a P2P network selected samples for selected identities.
@@ -148,6 +160,8 @@ Allows share on a P2P network selected samples for selected identities.
 * clé de signature `$CONFIGDIR/malwswitch/malswitch-id.ed25519` 
 * base de donnée de communauté `$WORKDIR/databases/community.db`
 * base de donnée de catalogue `$WORKDIR/databases/catalog.db`
+
+-----
 
 ## Manifest file format
 
@@ -175,3 +189,5 @@ Manifest is a YAML file.
 
 1. Sort the tags
 2. TODO
+
+
