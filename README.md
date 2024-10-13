@@ -9,7 +9,7 @@ Learn by trying a software system that allow to easily manage a collection of ma
 ## Requirements
 
 * Each binary has associated meta informations in the form of a list of tags.
-* Tags are of the form Name/Value/Comment and allow for multiple values for the same tag.
+* Tags are of the form Name/Value/Parameter and allow for multiple values for the same tag.
 * Some tags are required: basic hashes, submission date, submiter identity
 * Each instance has an identity that is a private key
 * Changes are historized in the meta-informations and signed with the private key
@@ -46,9 +46,11 @@ Learn by trying a software system that allow to easily manage a collection of ma
           +----(process bin)---->[submission analyzer]----(reference)-----<storage catalog>------+                                                      |
                                           |                                                      |                                                      V
                             (package binary and meta infos)                                      +-----------( update collection and catalog)------[Exchanger]----<P2P Network>
-                                          |                                                      |
-                                <collection storage>---------------------------------------------+
-```
+                                          |                                                      |                                                      ^
+                                <collection storage>---------------------------------------------+                                                      |
+                                                                                                                                                        V
+                                                                                                                                                <community database>
+```  
 ## Directories
 
 ```
@@ -68,13 +70,16 @@ Learn by trying a software system that allow to easily manage a collection of ma
                |               \            \-<hex(SHA256)>.bin
                |                \-----<sha256(code2)>--...
                |                 \----<sha256(code3)>--...
-               +---catalog--catalog.db
+               +---databases--catalog.db
+               |     \-------community.db
+               |
                +---logs
                 \    \-----subgateway--<YYYY>-<MM>.log
                  \    \----subanalyzer-<YYYY>-<MM>.log
                   \    \---catbrowser-<YYYY>-<MM>.log
                    \    \--exchanger-<YYYY>-<MM>.log
-                   \--share--<TODO>          
+                    \
+                     \--share--<TODO>          
 ``` 
 
 ## Components
@@ -126,4 +131,47 @@ Submission analyzer jobs is to process new files:
 
 * configuration `$CONFIGDIR/malwswitch/subanalyzer.ini`
 * clé de signature `$CONFIGDIR/malwswitch/malswitch-id.ed25519` 
+* base de donnée de catalogue `$WORKDIR/databases/catalog.db`
 
+### Exchanger
+
+Allows share on a P2P network selected samples for selected identities.
+
+
+#### Exposed API
+
+* `exchanger/*` TODO
+
+#### Files
+
+* configuration `$CONFIGDIR/malwswitch/exchanger.ini`
+* clé de signature `$CONFIGDIR/malwswitch/malswitch-id.ed25519` 
+* base de donnée de communauté `$WORKDIR/databases/community.db`
+* base de donnée de catalogue `$WORKDIR/databases/catalog.db`
+
+## Manifest file format
+
+Manifest is a YAML file.
+
+### Required tags
+
+* `LastChangeTime`
+* `SHA256`
+* `TLP`
+* `Path(submission)`
+
+### Optionnal tags
+
+* `SHA512`
+* `SHA384`
+* `SHA1`
+* `MD5`
+* `FirstBytes`
+* `AssociatedGroups`
+* `Techniques`
+* `Names`
+  
+### Signature
+
+1. Sort the tags
+2. TODO
