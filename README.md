@@ -38,11 +38,11 @@ Learn by trying a software system that allow to easily manage a collection of ma
           |                            |                                                |                                             |
     (submit malware)             (check status)                                         V                                             |
           |                            |                                        [catalog browser]                                     |
-[ submission gateway ]                 |                                                |                                             |
-          |                            |                             (read and update catalog, and collection)  (select samples to share and sharing circles)
-          V                            |                                                |                                             |
-  <submission queue>                   |                                                |                                             |
-          |                            V                                                |                                             |
+[ submission gateway ]<----------------+                                                |                                             |
+          |                                                          (read and update catalog, and collection)  (select samples to share and sharing circles)
+          V                                                                             |                                             |
+  <submission queue>                                                                    |                                             |
+          |                                                                             |                                             |
           +---(process bin)--->[submission analyzer]--(reference)--<storage catalog>----+                                             |
                                        |                                                |                                             V
                          (package binary and meta infos)                                +-----( update collection and catalog)---[Exchanger]---<P2P Network>
@@ -104,6 +104,8 @@ Upon reception:
 #### Exposed API
 
 * `submission-queue/POST(binary,tag,value)->UUID` - submit an entry to queue and return the malware submission UUID
+* `submission-queue/GET` return the list of the entries in the queue
+* `submission-queue/GET(uuid)` return the information of an entry in the queue
 * `submission-queue/*` - return HTTP 400 error
 
 #### Files
@@ -134,8 +136,7 @@ Submission analyzer jobs is to process new files:
 
 #### Exposed API
 
-* `submission-analyzer/GET` return the list of the entries in the queue
-* `submission-analyzer/GET(uuid)` return the information of an entry in the queue
+None
 
 #### Files
 
@@ -172,7 +173,7 @@ Manifest is a YAML file.
 * `LastChangeTime`
 * `SHA256`
 * `TLP`
-* `Path(submission)`
+* `Filename(submission)`
 
 ### Optionnal tags
 
@@ -184,6 +185,7 @@ Manifest is a YAML file.
 * `AssociatedGroups`
 * `Techniques`
 * `Names`
+* `Path(submission)`
   
 ### Signature
 

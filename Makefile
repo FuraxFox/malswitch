@@ -1,6 +1,6 @@
 # Change these variables as necessary.
-main_package_path = ./cmd/example
-binary_name = example
+main_package_path = ./cmd/subgateway
+binary_name = subgateway
 
 # ==================================================================================== #
 # HELPERS
@@ -9,8 +9,8 @@ binary_name = example
 ## help: print this help message
 .PHONY: help
 help:
-    @echo 'Usage:'
-    @sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
+    @echo "Usage:"
+    @sed -n "s/^##//p" ${MAKEFILE_LIST} | column -t -s ":" |  sed -e "s/^/ /"
 
 .PHONY: confirm
 confirm:
