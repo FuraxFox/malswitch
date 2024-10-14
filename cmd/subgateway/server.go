@@ -78,6 +78,14 @@ func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("SHA1 Hash:", sub.SHA1)
 	fmt.Println("SHA256 Hash:", sub.SHA256)
 	fmt.Println("SHA512 Hash:", sub.SHA512)
+	answer, err := sub.GetJSON()
 
-	fmt.Fprintf(w, "File uploaded successfully: %s\n", handler.Filename)
+	// writing response
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(answer)
+	if err != nil {
+		http.Error(w, "Error writing response", http.StatusInternalServerError)
+		return
+	}
+
 }

@@ -5,3 +5,8 @@
 
 package manifest
 
+type Tag struct {
+	Name      string
+	Value     string
+	Parameter string
+}

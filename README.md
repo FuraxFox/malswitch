@@ -59,9 +59,8 @@ Learn by trying a software system that allow to easily manage a collection of ma
 ```
            <WORKROOT>
                |
-               +---data---submissions---<UUID(code1)
-               |      |            |       \---History.yaml
-               |      |            |        \--Manifest.yaml
+               +---data---submissions---<UUID(code1)               
+               |      |            |        \--Submission.yaml
                |      |            |         \-<hex(SHA256)>.bin
                |      |            \
                |      |             \---<UUID(code2)>--...

@@ -10,10 +10,10 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/json"
 	"fmt"
 	"hash"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"path/filepath"
@@ -30,7 +30,7 @@ type Submission struct {
 	SHA512   string
 	TLP      string
 	Filename string
-	TempPath string
+	TempPath string `json:"-" yaml:"-"`
 }
 
 func createDirIfNotExist(path string) error {
@@ -138,16 +138,32 @@ func (s *Submission) Enqueue(queueRoot string) error {
 	return nil
 }
 
+func (s *Submission) GetYAML() ([]byte, error) {
+	yamlData, err := yaml.Marshal(&s)
+	if err != nil {
+		return nil, err
+	}
+	return yamlData, nil
+}
+
+func (s *Submission) GetJSON() ([]byte, error) {
+	jsonData, err := json.Marshal(&s)
+	if err != nil {
+		return nil, err
+	}
+	return jsonData, nil
+}
+
 func (s *Submission) SaveManifest(dir string) error {
 	// TODO
-	yamlData, err := yaml.Marshal(&s)
+	yamlData, err := s.GetYAML()
 	if err != nil {
 		return err
 	}
 
-	filePath := filepath.Join(dir, "Manifest.yaml")
+	filePath := filepath.Join(dir, "Submission.yaml")
 
-	err = ioutil.WriteFile(filePath, yamlData, 0644)
+	err = os.WriteFile(filePath, yamlData, 0644)
 	if err != nil {
 		return err
 	}
