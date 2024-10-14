@@ -170,3 +170,17 @@ func (s *Submission) SaveManifest(dir string) error {
 
 	return nil
 }
+
+/*
+func GetOldest(dirName string) (*Submission, erro
+	dirEntries, err := os.ReadDir(dirName)
+	if err != nil {
+		return fmt.Errorf("failed to read dir: %w", err)
+	}
+	for _, dirEntry := range dirEntries {
+		fmt.Println("== " + dirEntry.Name())
+		srcSubDirName := filepath.Join(dirName, dirEntry.Name())
+		// TODO
+	return nil,nil
+}
+*/
