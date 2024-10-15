@@ -7,29 +7,37 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path/filepath"
+	"time"
 )
 
 var QUEUE_DIR string = "var/data/submissions"
 var TEMP_DIR string = "var/data/temp"
-
-func readSubmission(dirName string) error {
-	dirEntries, err := os.ReadDir(dirName)
-	if err != nil {
-		return fmt.Errorf("failed to read dir: %w", err)
-	}
-	for _, dirEntry := range dirEntries {
-		fmt.Println("== " + dirEntry.Name())
-		srcSubDirName := filepath.Join(dirName, dirEntry.Name())
-
-		if dirEntry.IsDir() {
-
-		}
-	return nil
-}
+var CAT_DIR string = "var/data/catalog"
 
 func main() {
-	fmt.Println("Submission analyzer")
+	submissionDir := QUEUE_DIR
+	catalogDir := CAT_DIR
+
+	// Create outgoing directory if it doesn't exist
+	err := os.MkdirAll(catalogDir, os.ModePerm)
+	if err != nil {
+		fmt.Println("Error creating outgoing directory:", err)
+		return
+	}
+	for {
+		queue, err := readSubmissions(submissionDir)
+		if err != nil {
+			fmt.Println("Error reading submissions queue:", err)
+			return
+		}
+		for _, s := range queue {
+			err = processSubmission(s, submissionDir, catalogDir)
+			if err != nil {
+				fmt.Println("Error processing submission:", err)
+				return
+			}
+		}
+		time.Sleep(1)
+	}
 }

@@ -1,47 +1,34 @@
-PROJECT_NAME := "malswitch"
-PKG := "github.com/FuraxFox/malswitch/cmd/subgateway"
-PLATFORMS := linux windows
-ARCHITECTURES := 386 amd64
-BINARY :=fastburnt_cli
-LDFLAGS  :=
-#LDFLAGS := "-ldflags XXX YYYY ZZZ"
-PKG_LIST := $(shell go list ${PKG}/... | grep -v /vendor/)
-GO_FILES := $(shell find . -name '*.go' | grep -v /vendor/ | grep -v _test.go)
+TARGETS := github.com/FuraxFox/malswitch/cmd/subgateway \
+	github.com/FuraxFox/malswitch/cmd/subanalyzer \
+	github.com/FuraxFox/malswitch/cmd/exchanger \
+	github.com/FuraxFox/malswitch/cmd/catbrowser
 
-.PHONY: all dep build clean test lint
+.PHONY: all clean test lint
 
-all: build
+# Set the Go binary
+GOBIN := $(shell go env GOBIN)
 
-lint: ## Lint the files
-	go vet ${PKG_LIST}
-	staticcheck ${PKG_LIST}
+# Set the build directory
+BUILD_DIR := build
 
-test: ## Run unittests
-	go test -short ${PKG_LIST}
+# Build all targets
+all: $(TARGETS)
 
-race: dep ## Run data race detector
-	go test -race -short ${PKG_LIST}
+# Build a specific target
+$(TARGETS):
+	@echo "building $@ : $(notdir $@)"
+	go build -o $(BUILD_DIR)/$(notdir $@) $@
 
-msan: dep ## Run memory sanitizer
-	go test -msan -short ${PKG_LIST}
+# Run tests for all targets
+test: test_$(TARGETS)
 
-dep: ## Get the dependencies
-	go get -v -d ./...
+# Run tests for a specific target
+test_%:
+	go test -v $(BUILD_DIR)/$(basename $(subst test_,,$@))
 
-build: dep ## Build the binary file
-	go build  ${LDFLAGS} -v $(PKG)
-
-clean: ## Remove previous build
-	rm -f $(PROJECT_NAME)
-
-cross:
-	$(foreach GOOS, $(PLATFORMS),\
-	$(foreach GOARCH, $(ARCHITECTURES), \
-	$(shell \
-		export GOOS=$(GOOS); \
-	    export GOARCH=$(GOARCH); \
-		go clean -modcache ;	\
-		go build $(LDFLAGS) -v -o $(BINARY)-$(GOOS)-$(GOARCH)  $(PKG)  )))
+# Clean the build directory
+clean:
+	rm -rf $(BUILD_DIR)
 
 help: ## Display this help screen
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

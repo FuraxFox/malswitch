@@ -15,6 +15,7 @@ import (
 	"hash"
 	"io"
 	"os"
+	"time"
 
 	"path/filepath"
 
@@ -23,14 +24,15 @@ import (
 )
 
 type Submission struct {
-	UUID     string
-	MD5      string
-	SHA1     string
-	SHA256   string
-	SHA512   string
-	TLP      string
-	Filename string
-	TempPath string `json:"-" yaml:"-"`
+	UUID       string
+	MD5        string
+	SHA1       string
+	SHA256     string
+	SHA512     string
+	TLP        string
+	Filename   string
+	TempPath   string `json:"-" yaml:"-"`
+	QueuedPath string `json:"-" yaml:"-"`
 }
 
 func createDirIfNotExist(path string) error {
@@ -43,7 +45,7 @@ func createDirIfNotExist(path string) error {
 	return nil
 }
 
-func Create(sampleFilename string, sampleTLP string, tempDir string) (*Submission, error) {
+func Create(sampleFilename string, sampleTLP string, tempDir string, queueDir string) (*Submission, error) {
 	s := Submission{
 		Filename: sampleFilename,
 		TLP:      sampleTLP,
@@ -71,7 +73,7 @@ func computeHash(f *os.File, algo hash.Hash) (string, error) {
 	return hashString, nil
 }
 
-// Calculate the SHA256 hash of the file
+// Calculate the various basic hashes of the file
 func (s *Submission) Hash() error {
 
 	f, err := os.Open(s.TempFilePath())
@@ -171,16 +173,50 @@ func (s *Submission) SaveManifest(dir string) error {
 	return nil
 }
 
-/*
-func GetOldest(dirName string) (*Submission, erro
-	dirEntries, err := os.ReadDir(dirName)
-	if err != nil {
-		return fmt.Errorf("failed to read dir: %w", err)
+func (s *Submission) Lock() error {
+	lock := s.QueuedPath + ".lock"
+
+	// Try to acquire the lock
+	locked := false
+	for !locked {
+		err := os.Mkdir(lock, os.ModePerm)
+		if err != nil {
+			if os.IsExist(err) {
+				// Lock already exists, wait for a short time and retry
+				time.Sleep(100 * time.Millisecond)
+			} else {
+				fmt.Println("Error creating lock file:", err)
+				return err
+			}
+		} else {
+			locked = true
+		}
 	}
-	for _, dirEntry := range dirEntries {
-		fmt.Println("== " + dirEntry.Name())
-		srcSubDirName := filepath.Join(dirName, dirEntry.Name())
-		// TODO
-	return nil,nil
+	return nil
 }
-*/
+
+func (s *Submission) Unlock() error {
+	lock := s.QueuedPath + ".lock"
+	err := os.RemoveAll(lock)
+	return err
+}
+
+func Read(queuePath string) (*Submission, error) {
+
+	// TODO
+
+	// Read the YAML content
+	data, err := os.ReadFile(filepath.Join(queuePath, "Submission.yaml"))
+	if err != nil {
+		return nil, err
+	}
+	// Parse the YAML content
+	//var yamlData interface{}
+	var yamlData Submission
+	err = yaml.Unmarshal(data, &yamlData)
+	if err != nil {
+		return nil, err
+	}
+
+	return &yamlData, nil
+}
