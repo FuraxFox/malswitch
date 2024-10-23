@@ -9,35 +9,51 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var QUEUE_DIR string = "var/data/submissions"
 var TEMP_DIR string = "var/data/temp"
 var CAT_DIR string = "var/data/catalog"
+var DB_PATH string = "var/databases/catalog.db"
 
 func main() {
-	submissionDir := QUEUE_DIR
-	catalogDir := CAT_DIR
+
+	ctx := SubmissionAnalyzerContext{
+		CatalogDir:     CAT_DIR,
+		TempDir:        TEMP_DIR,
+		SubmissionsDir: QUEUE_DIR,
+		DbPath:         DB_PATH,
+	}
+
+	err := ctx.OpenDB()
+	if err != nil {
+		fmt.Println("Error while opening DB", err)
+		return
+	}
+	defer ctx.CloseDB()
 
 	// Create outgoing directory if it doesn't exist
-	err := os.MkdirAll(catalogDir, os.ModePerm)
+	err = os.MkdirAll(ctx.CatalogDir, os.ModePerm)
 	if err != nil {
 		fmt.Println("Error creating outgoing directory:", err)
 		return
 	}
+	fmt.Println("Starting to analyse from queue " + ctx.SubmissionsDir)
 	for {
-		queue, err := readSubmissions(submissionDir)
+		queue, err := ctx.ReadSubmissions()
 		if err != nil {
 			fmt.Println("Error reading submissions queue:", err)
 			return
 		}
 		for _, s := range queue {
-			err = processSubmission(s, submissionDir, catalogDir)
+			err = ctx.ProcessSubmission(s)
 			if err != nil {
 				fmt.Println("Error processing submission:", err)
 				return
 			}
 		}
-		time.Sleep(1)
+		time.Sleep(100 * time.Millisecond)
 	}
 }

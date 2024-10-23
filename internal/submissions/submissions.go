@@ -15,7 +15,6 @@ import (
 	"hash"
 	"io"
 	"os"
-	"time"
 
 	"path/filepath"
 
@@ -24,25 +23,15 @@ import (
 )
 
 type Submission struct {
-	UUID       string
-	MD5        string
-	SHA1       string
-	SHA256     string
-	SHA512     string
-	TLP        string
-	Filename   string
+	UUID       string `yaml:"uuid"`
+	MD5        string `yaml:"md5"`
+	SHA1       string `yaml:"sha1"`
+	SHA256     string `yaml:"sha255"`
+	SHA512     string `yaml:"sha512"`
+	TLP        string `yaml:"tlp"`
+	Filename   string `yaml:"filename"`
 	TempPath   string `json:"-" yaml:"-"`
 	QueuedPath string `json:"-" yaml:"-"`
-}
-
-func createDirIfNotExist(path string) error {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		err = os.Mkdir(path, 0700)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func Create(sampleFilename string, sampleTLP string, tempDir string, queueDir string) (*Submission, error) {
@@ -53,7 +42,7 @@ func Create(sampleFilename string, sampleTLP string, tempDir string, queueDir st
 	s.UUID = uuid.NewString()
 	s.TempPath = filepath.Join(tempDir, s.UUID)
 
-	err := createDirIfNotExist(s.TempPath)
+	err := CreateDirIfNotExist(s.TempPath)
 	if err != nil {
 		return nil, err
 	}
@@ -112,12 +101,26 @@ func (s *Submission) Hash() error {
 func (s *Submission) TempFilePath() string {
 	return filepath.Join(s.TempPath, s.UUID+".bin")
 }
+func (s *Submission) Dequeue() error {
+	// Remove the file if insertion succeeded
+	err := os.RemoveAll(s.QueuedPath)
+	if err != nil {
+		fmt.Println("Error removing file:", err)
+		return err
+	}
+	return nil
+}
 
 func (s *Submission) Enqueue(queueRoot string) error {
+	err := s.Lock()
+	if err != nil {
+		return err
+	}
+	defer s.Unlock()
 
 	// creating queue entry directory <queue>/<uuid>
 	queuePath := filepath.Join(queueRoot, s.UUID)
-	err := createDirIfNotExist(queuePath)
+	err = CreateDirIfNotExist(queuePath)
 	if err != nil {
 		return err
 	}
@@ -174,36 +177,19 @@ func (s *Submission) SaveManifest(dir string) error {
 }
 
 func (s *Submission) Lock() error {
-	lock := s.QueuedPath + ".lock"
-
-	// Try to acquire the lock
-	locked := false
-	for !locked {
-		err := os.Mkdir(lock, os.ModePerm)
-		if err != nil {
-			if os.IsExist(err) {
-				// Lock already exists, wait for a short time and retry
-				time.Sleep(100 * time.Millisecond)
-			} else {
-				fmt.Println("Error creating lock file:", err)
-				return err
-			}
-		} else {
-			locked = true
-		}
-	}
-	return nil
+	return LockFile(s.QueuedPath)
 }
 
 func (s *Submission) Unlock() error {
-	lock := s.QueuedPath + ".lock"
-	err := os.RemoveAll(lock)
-	return err
+	return UnlockFile(s.QueuedPath)
 }
 
 func Read(queuePath string) (*Submission, error) {
-
-	// TODO
+	err := LockFile(queuePath)
+	if err != nil {
+		return nil, err
+	}
+	defer UnlockFile(queuePath)
 
 	// Read the YAML content
 	data, err := os.ReadFile(filepath.Join(queuePath, "Submission.yaml"))
@@ -211,12 +197,13 @@ func Read(queuePath string) (*Submission, error) {
 		return nil, err
 	}
 	// Parse the YAML content
-	//var yamlData interface{}
-	var yamlData Submission
-	err = yaml.Unmarshal(data, &yamlData)
+	//var sub interface{}
+	var sub Submission
+	err = yaml.Unmarshal(data, &sub)
 	if err != nil {
 		return nil, err
 	}
+	sub.QueuedPath = queuePath
 
-	return &yamlData, nil
+	return &sub, nil
 }

@@ -22,9 +22,9 @@ func checkErr(err error) {
 	}
 }
 
-func readSubmissions(queueDir string) ([]*submissions.Submission, error) {
+func (ctx *SubmissionAnalyzerContext) ReadSubmissions() ([]*submissions.Submission, error) {
 	// Get a list of files in the incoming directory
-	files, err := os.ReadDir(queueDir)
+	files, err := os.ReadDir(ctx.SubmissionsDir)
 	if err != nil {
 		fmt.Println("Error reading incoming directory:", err)
 		return nil, err
@@ -42,7 +42,7 @@ func readSubmissions(queueDir string) ([]*submissions.Submission, error) {
 	// Process files sequentially
 	var subQueue []*submissions.Submission
 	for _, entry := range files {
-		filepath := filepath.Join(queueDir, entry.Name())
+		filepath := filepath.Join(ctx.SubmissionsDir, entry.Name())
 
 		if entry.IsDir() {
 			// list the directory content: we expect 1.bin malware, 2.Submission.yaml nothing else
@@ -57,39 +57,42 @@ func readSubmissions(queueDir string) ([]*submissions.Submission, error) {
 	return subQueue, nil
 }
 
-func processSubmission(sub *submissions.Submission, queueDir string, catalogDir string) error {
+func (ctx *SubmissionAnalyzerContext) ProcessSubmission(sub *submissions.Submission) error {
 
-	subDir := filepath.Join(queueDir, sub.UUID)
-	subPath := filepath.Join(subDir, "Submission.yaml")
-	err := sub.Lock()
-	if err != nil {
-		return err
-	}
-	defer sub.Unlock()
-
-	// Read the YAML content
-	data, err := os.ReadFile(subPath)
-	if err != nil {
-		return err
-	}
-
-	// Parse the YAML content
-	var yamlData interface{}
-	err = yaml.Unmarshal(data, &yamlData)
-	if err != nil {
-		return err
-	}
+	subDir := filepath.Join(ctx.SubmissionsDir, sub.UUID)
 
 	// Display the content
 	fmt.Println("File:", subDir)
-	fmt.Println(yamlData)
+	fmt.Println(sub)
 
-	// Write the content to the outgoing directory
-	outgoingFilename := filepath.Join(catalogDir, filepath.Base(subDir))
-	err = os.WriteFile(outgoingFilename, data, os.ModePerm)
+	// Insert the data into the database
+	_, err := ctx.Db.Exec("INSERT INTO catalog (uuid, md5, filename, tlp) VALUES (?, ?, ?, ?)",
+		sub.UUID, sub.MD5, sub.Filename, sub.TLP)
 	if err != nil {
+		fmt.Println("Error inserting data:", err)
 		return err
 	}
+
+	data, err := yaml.Marshal(sub)
+	if err != nil {
+		fmt.Println("Error serializing data:", err)
+		return err
+	}
+
+	// Write the content to the outgoing directory
+	outgoingFilename := filepath.Join(ctx.CatalogDir, filepath.Base(subDir))
+	err = os.WriteFile(outgoingFilename, data, os.ModePerm)
+	if err != nil {
+		fmt.Println("Error writing catalog manifest:", err)
+		return err
+	}
+
+	err = sub.Dequeue()
+	if err != nil {
+		fmt.Println("Error dequeing submission:", err)
+		return err
+	}
+
 	fmt.Println(outgoingFilename + " imported to catalog")
 
 	return nil
