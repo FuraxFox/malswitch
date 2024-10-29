@@ -8,6 +8,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"os"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -21,11 +22,15 @@ type SubmissionAnalyzerContext struct {
 }
 
 func (ctx *SubmissionAnalyzerContext) OpenDB() error {
+
+	pwd, _ := os.Getwd()
 	db, err := sql.Open("sqlite3", ctx.DbPath)
 	if err != nil {
-		fmt.Println("Error opening catalog database '", ctx.DbPath, "'", err)
+		fmt.Println("Error opening catalog database("+pwd+") '"+ctx.DbPath+"'", err)
 		return err
 	}
+
+	ctx.Db = db
 	// Create the catalog table if it doesn't exist
 	_, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS catalog (
@@ -39,7 +44,7 @@ func (ctx *SubmissionAnalyzerContext) OpenDB() error {
         )
     `)
 	if err != nil {
-		fmt.Println("Error creating table:", err)
+		fmt.Println("Error creating table catalog("+ctx.DbPath+")", err)
 		return err
 	}
 	return nil

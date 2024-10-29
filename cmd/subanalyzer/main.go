@@ -37,7 +37,7 @@ func main() {
 	// Create outgoing directory if it doesn't exist
 	err = os.MkdirAll(ctx.CatalogDir, os.ModePerm)
 	if err != nil {
-		fmt.Println("Error creating outgoing directory:", err)
+		fmt.Println("Error creating outgoing directory("+ctx.CatalogDir+"):", err)
 		return
 	}
 	fmt.Println("Starting to analyse from queue " + ctx.SubmissionsDir)
