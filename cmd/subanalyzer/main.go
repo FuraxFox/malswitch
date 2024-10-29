@@ -33,7 +33,7 @@ func main() {
 
 	err := ctx.OpenDB()
 	if err != nil {
-		log.Error("error while opening DB", err)
+		log.Error("error while opening DB:", err)
 		return
 	}
 	defer ctx.CloseDB()

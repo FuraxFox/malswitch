@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -34,7 +35,7 @@ type Submission struct {
 	QueuedPath string `json:"-" yaml:"-"`
 }
 
-func Create(sampleFilename string, sampleTLP string, tempDir string, queueDir string) (*Submission, error) {
+func Create(sampleFilename string, sampleTLP string, queueDir string, tempDir string) (*Submission, error) {
 	s := Submission{
 		Filename: sampleFilename,
 		TLP:      sampleTLP,
@@ -44,6 +45,7 @@ func Create(sampleFilename string, sampleTLP string, tempDir string, queueDir st
 
 	err := CreateDirIfNotExist(s.TempPath)
 	if err != nil {
+		log.Error("failed to create submission directory:", err)
 		return nil, err
 	}
 
@@ -54,6 +56,7 @@ func computeHash(f *os.File, algo hash.Hash) (string, error) {
 
 	_, err := io.Copy(algo, f)
 	if err != nil {
+		log.Error("failed to copy file descriptor to compute hash:", err)
 		return "", err
 	}
 	hashBytes := algo.Sum(nil)
@@ -67,30 +70,35 @@ func (s *Submission) Hash() error {
 
 	f, err := os.Open(s.TempFilePath())
 	if err != nil {
+		log.Error("failed to open '"+s.TempFilePath()+"':", err)
 		return err
 	}
 	defer f.Close()
 
 	hashString, err := computeHash(f, md5.New())
 	if err != nil {
+		log.Error("failed to compute MD5 hash:", err)
 		return err
 	}
 	s.MD5 = hashString
 
 	hashString, err = computeHash(f, sha1.New())
 	if err != nil {
+		log.Error("failed to compute SHA1 hash:", err)
 		return err
 	}
 	s.SHA1 = hashString
 
 	hashString, err = computeHash(f, sha256.New())
 	if err != nil {
+		log.Error("failed to compute SHA256 hash:", err)
 		return err
 	}
 	s.SHA256 = hashString
 
 	hashString, err = computeHash(f, sha512.New())
 	if err != nil {
+		log.Error("failed to compute SHA512 hash:", err)
 		return err
 	}
 	s.SHA512 = hashString
@@ -101,11 +109,12 @@ func (s *Submission) Hash() error {
 func (s *Submission) TempFilePath() string {
 	return filepath.Join(s.TempPath, s.UUID+".bin")
 }
+
 func (s *Submission) Dequeue() error {
 	// Remove the file if insertion succeeded
 	err := os.RemoveAll(s.QueuedPath)
 	if err != nil {
-		fmt.Println("Error removing file:", err)
+		log.Error("error removing file:", err)
 		return err
 	}
 	return nil
@@ -114,6 +123,7 @@ func (s *Submission) Dequeue() error {
 func (s *Submission) Enqueue(queueRoot string) error {
 	err := s.Lock()
 	if err != nil {
+		log.Error("failed to get lock on submission to enqueue:", err)
 		return err
 	}
 	defer s.Unlock()
@@ -122,6 +132,7 @@ func (s *Submission) Enqueue(queueRoot string) error {
 	queuePath := filepath.Join(queueRoot, s.UUID)
 	err = CreateDirIfNotExist(queuePath)
 	if err != nil {
+		log.Error("failed to create submission directory:", err)
 		return err
 	}
 
@@ -129,23 +140,32 @@ func (s *Submission) Enqueue(queueRoot string) error {
 	queueFilename := filepath.Join(queuePath, s.SHA256+".bin")
 	err = os.Rename(s.TempFilePath(), queueFilename)
 	if err != nil {
+		log.Error("failed to move submission to the queue directory:", err)
 		return err
 	}
+	log.Debug("submitted data file moved from: " + s.TempFilePath() + "  to:" + queueFilename)
+
+	err = s.SaveManifest(queuePath)
+	if err != nil {
+		log.Error("failed to save submission manifest:", err)
+		return err
+	}
+	log.Debug("manifest saved to " + queuePath)
 
 	// cleanup
-	err = os.Remove(s.TempPath)
+	err = os.RemoveAll(s.TempPath)
 	if err != nil {
+		log.Error("failed to remove temporary submission files:", err)
 		return err
 	}
-
-	s.SaveManifest(queuePath)
-	// TODO create history
-	return nil
+	log.Debug("submission temporary path " + s.TempPath + " cleaned up")
+	return err
 }
 
 func (s *Submission) GetYAML() ([]byte, error) {
 	yamlData, err := yaml.Marshal(&s)
 	if err != nil {
+		log.Error("failed to encode submission to YAML:", err)
 		return nil, err
 	}
 	return yamlData, nil
@@ -154,6 +174,7 @@ func (s *Submission) GetYAML() ([]byte, error) {
 func (s *Submission) GetJSON() ([]byte, error) {
 	jsonData, err := json.Marshal(&s)
 	if err != nil {
+		log.Error("failed to encode submission to JSON:", err)
 		return nil, err
 	}
 	return jsonData, nil
@@ -163,15 +184,17 @@ func (s *Submission) SaveManifest(dir string) error {
 	// TODO
 	yamlData, err := s.GetYAML()
 	if err != nil {
+		log.Error("failed to save submission manifest:", err)
 		return err
 	}
 
 	filePath := filepath.Join(dir, "Submission.yaml")
-
 	err = os.WriteFile(filePath, yamlData, 0644)
 	if err != nil {
+		log.Error("failed to write submission manifest:", err)
 		return err
 	}
+	log.Debug("submission manifest saved to " + filePath)
 
 	return nil
 }
@@ -187,6 +210,7 @@ func (s *Submission) Unlock() error {
 func Read(queuePath string) (*Submission, error) {
 	err := LockFile(queuePath)
 	if err != nil {
+		log.Error("failed to lock submission for reading:", err)
 		return nil, err
 	}
 	defer UnlockFile(queuePath)
@@ -194,6 +218,7 @@ func Read(queuePath string) (*Submission, error) {
 	// Read the YAML content
 	data, err := os.ReadFile(filepath.Join(queuePath, "Submission.yaml"))
 	if err != nil {
+		log.Error("failed to read submission data:", err)
 		return nil, err
 	}
 	// Parse the YAML content
@@ -201,6 +226,7 @@ func Read(queuePath string) (*Submission, error) {
 	var sub Submission
 	err = yaml.Unmarshal(data, &sub)
 	if err != nil {
+		log.Error("failed to decode submission data:", err)
 		return nil, err
 	}
 	sub.QueuedPath = queuePath
