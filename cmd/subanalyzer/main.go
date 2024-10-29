@@ -6,7 +6,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"time"
 
@@ -29,9 +28,12 @@ func main() {
 		DbPath:         DB_PATH,
 	}
 
+	log.Debug("Starting submission-analyzer on queue_dir:" +
+		"'" + QUEUE_DIR + "' temp_dir:'" + TEMP_DIR + "' cat_dir:'" + DB_PATH + "'")
+
 	err := ctx.OpenDB()
 	if err != nil {
-		fmt.Println("Error while opening DB", err)
+		log.Error("error while opening DB", err)
 		return
 	}
 	defer ctx.CloseDB()
@@ -39,20 +41,20 @@ func main() {
 	// Create outgoing directory if it doesn't exist
 	err = os.MkdirAll(ctx.CatalogDir, os.ModePerm)
 	if err != nil {
-		fmt.Println("Error creating outgoing directory("+ctx.CatalogDir+"):", err)
+		log.Error("error creating outgoing directory("+ctx.CatalogDir+"):", err)
 		return
 	}
-	fmt.Println("Starting to analyse from queue " + ctx.SubmissionsDir)
+	log.Info("starting to analyse from queue '" + ctx.SubmissionsDir + "'")
 	for {
 		queue, err := ctx.ReadSubmissions()
 		if err != nil {
-			fmt.Println("Error reading submissions queue:", err)
+			log.Error("error reading submissions queue:", err)
 			return
 		}
 		for _, s := range queue {
 			err = ctx.ProcessSubmission(s)
 			if err != nil {
-				fmt.Println("Error processing submission:", err)
+				log.Error("error processing submission:", err)
 				return
 			}
 		}
