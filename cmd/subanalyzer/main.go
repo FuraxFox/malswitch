@@ -52,6 +52,7 @@ func main() {
 			return
 		}
 		for _, s := range queue {
+			log.Info("processing submission " + s.UUID)
 			err = ctx.ProcessSubmission(s)
 			if err != nil {
 				log.Error("error processing submission:", err)

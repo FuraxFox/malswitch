@@ -7,12 +7,14 @@ package main
 
 import (
 	"fmt"
-	"log"
+
 	"os"
 	"path/filepath"
 	"sort"
 
 	"github.com/FuraxFox/malswitch/internal/submissions"
+	log "github.com/sirupsen/logrus"
+
 	"gopkg.in/yaml.v2"
 )
 
@@ -26,7 +28,7 @@ func (ctx *SubmissionAnalyzerContext) ReadSubmissions() ([]*submissions.Submissi
 	// Get a list of files in the incoming directory
 	files, err := os.ReadDir(ctx.SubmissionsDir)
 	if err != nil {
-		fmt.Println("Error reading incoming directory:", err)
+		log.Error("error reading incoming directory:", err)
 		return nil, err
 	}
 
@@ -62,14 +64,16 @@ func (ctx *SubmissionAnalyzerContext) ProcessSubmission(sub *submissions.Submiss
 	subDir := filepath.Join(ctx.SubmissionsDir, sub.UUID)
 
 	// Display the content
-	fmt.Println("File:", subDir)
+	log.Debug("file:", subDir)
 	fmt.Println(sub)
 
 	// Insert the data into the database
-	_, err := ctx.Db.Exec("INSERT INTO catalog (uuid, md5, filename, tlp) VALUES (?, ?, ?, ?)",
-		sub.UUID, sub.MD5, sub.Filename, sub.TLP)
+	_, err := ctx.Db.Exec(
+		"INSERT INTO catalog (uuid, md5, sha1, sha256, sha512, filename, tlp) "+
+			" VALUES (?, ?, ?, ?, ?, ?, ?)",
+		sub.UUID, sub.MD5, sub.SHA1, sub.SHA256, sub.SHA512, sub.Filename, sub.TLP)
 	if err != nil {
-		fmt.Println("Error inserting data:", err)
+		log.Error("error inserting analyzer data to database:", err)
 		return err
 	}
 
