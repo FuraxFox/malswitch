@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	log "github.com/sirupsen/logrus"
 )
 
 var QUEUE_DIR string = "var/data/submissions"
@@ -19,6 +19,8 @@ var CAT_DIR string = "var/data/catalog"
 var DB_PATH string = "var/databases/catalog.db"
 
 func main() {
+
+	log.SetLevel(log.DebugLevel)
 
 	ctx := SubmissionAnalyzerContext{
 		CatalogDir:     CAT_DIR,

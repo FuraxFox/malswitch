@@ -7,10 +7,10 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"os"
 
 	_ "github.com/mattn/go-sqlite3"
+	log "github.com/sirupsen/logrus"
 )
 
 type SubmissionAnalyzerContext struct {
@@ -24,9 +24,11 @@ type SubmissionAnalyzerContext struct {
 func (ctx *SubmissionAnalyzerContext) OpenDB() error {
 
 	pwd, _ := os.Getwd()
+	log.Debug("opening database " + ctx.DbPath + "(cwd:" + pwd + ")")
+
 	db, err := sql.Open("sqlite3", ctx.DbPath)
 	if err != nil {
-		fmt.Println("Error opening catalog database("+pwd+") '"+ctx.DbPath+"'", err)
+		log.Error("Error opening catalog database("+pwd+") '"+ctx.DbPath+"'", err)
 		return err
 	}
 
@@ -44,7 +46,7 @@ func (ctx *SubmissionAnalyzerContext) OpenDB() error {
         )
     `)
 	if err != nil {
-		fmt.Println("Error creating table catalog("+ctx.DbPath+")", err)
+		log.Error("Error creating table catalog("+ctx.DbPath+")", err)
 		return err
 	}
 	return nil
