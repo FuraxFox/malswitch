@@ -4,5 +4,3 @@
 // Component
 
 package collection
-
-// TODO

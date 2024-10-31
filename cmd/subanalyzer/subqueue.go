@@ -44,15 +44,19 @@ func (ctx *SubmissionAnalyzerContext) ReadSubmissions() ([]*submissions.Submissi
 	// Process files sequentially
 	var subQueue []*submissions.Submission
 	for _, entry := range files {
-		filepath := filepath.Join(ctx.SubmissionsDir, entry.Name())
-
+		filePath := filepath.Join(ctx.SubmissionsDir, entry.Name())
+		log.Debug("Checking '" + filePath + "' as a submission")
 		if entry.IsDir() {
 			// list the directory content: we expect 1.bin malware, 2.Submission.yaml nothing else
 			// TODO check directory content validity
-			sub, err := submissions.Read(filepath)
+			sub, err := submissions.Read(filePath)
 			if err == nil {
 				subQueue = append(subQueue, sub)
+				log.Debug("'" + filePath + "' accounted for as a valid submission")
+			} else {
+				log.Warning("Invalid submission '" + filePath + "'")
 			}
+
 		}
 
 	}
@@ -60,7 +64,7 @@ func (ctx *SubmissionAnalyzerContext) ReadSubmissions() ([]*submissions.Submissi
 }
 
 func (ctx *SubmissionAnalyzerContext) ProcessSubmission(sub *submissions.Submission) error {
-
+	log.Debug("Processing submission <" + sub.UUID + ">")
 	subDir := filepath.Join(ctx.SubmissionsDir, sub.UUID)
 
 	// Display the content
@@ -73,13 +77,13 @@ func (ctx *SubmissionAnalyzerContext) ProcessSubmission(sub *submissions.Submiss
 			" VALUES (?, ?, ?, ?, ?, ?, ?)",
 		sub.UUID, sub.MD5, sub.SHA1, sub.SHA256, sub.SHA512, sub.Filename, sub.TLP)
 	if err != nil {
-		log.Error("error inserting analyzer data to database:", err)
+		log.Error("error inserting analyzer data to database for submission<"+sub.UUID+">:", err)
 		return err
 	}
 
 	data, err := yaml.Marshal(sub)
 	if err != nil {
-		fmt.Println("Error serializing data:", err)
+		fmt.Println("Error serializing for submission<"+sub.UUID+">:", err)
 		return err
 	}
 
@@ -87,17 +91,17 @@ func (ctx *SubmissionAnalyzerContext) ProcessSubmission(sub *submissions.Submiss
 	outgoingFilename := filepath.Join(ctx.CatalogDir, filepath.Base(subDir))
 	err = os.WriteFile(outgoingFilename, data, os.ModePerm)
 	if err != nil {
-		fmt.Println("Error writing catalog manifest:", err)
+		fmt.Println("Error writing catalog for submission<"+sub.UUID+">:", err)
 		return err
 	}
 
 	err = sub.Dequeue()
 	if err != nil {
-		fmt.Println("Error dequeing submission:", err)
+		fmt.Println("Error dequeing submission<"+sub.UUID+">:", err)
 		return err
 	}
 
-	fmt.Println(outgoingFilename + " imported to catalog")
+	fmt.Println(outgoingFilename + " imported to catalog for submission<" + sub.UUID + ">")
 
 	return nil
 }

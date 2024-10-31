@@ -18,6 +18,8 @@ import (
 
 	"path/filepath"
 
+	"github.com/FuraxFox/malswitch/internal/filehelpers"
+
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
@@ -43,7 +45,7 @@ func Create(sampleFilename string, sampleTLP string, queueDir string, tempDir st
 	s.UUID = uuid.NewString()
 	s.TempPath = filepath.Join(tempDir, s.UUID)
 
-	err := CreateDirIfNotExist(s.TempPath)
+	err := filehelpers.CreateDirIfNotExist(s.TempPath)
 	if err != nil {
 		log.Error("failed to create submission directory:", err)
 		return nil, err
@@ -130,7 +132,7 @@ func (s *Submission) Enqueue(queueRoot string) error {
 
 	// creating queue entry directory <queue>/<uuid>
 	queuePath := filepath.Join(queueRoot, s.UUID)
-	err = CreateDirIfNotExist(queuePath)
+	err = filehelpers.CreateDirIfNotExist(queuePath)
 	if err != nil {
 		log.Error("failed to create submission directory:", err)
 		return err
@@ -200,20 +202,20 @@ func (s *Submission) SaveManifest(dir string) error {
 }
 
 func (s *Submission) Lock() error {
-	return LockFile(s.QueuedPath)
+	return filehelpers.LockFile(s.QueuedPath)
 }
 
 func (s *Submission) Unlock() error {
-	return UnlockFile(s.QueuedPath)
+	return filehelpers.UnlockFile(s.QueuedPath)
 }
 
 func Read(queuePath string) (*Submission, error) {
-	err := LockFile(queuePath)
+	err := filehelpers.LockFile(queuePath)
 	if err != nil {
 		log.Error("failed to lock submission for reading:", err)
 		return nil, err
 	}
-	defer UnlockFile(queuePath)
+	defer filehelpers.UnlockFile(queuePath)
 
 	// Read the YAML content
 	data, err := os.ReadFile(filepath.Join(queuePath, "Submission.yaml"))
