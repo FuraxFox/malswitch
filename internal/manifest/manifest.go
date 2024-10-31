@@ -15,6 +15,7 @@ type Manifest struct {
 	SHA512   string `yaml:"sha512"`
 	TLP      string `yaml:"tlp"`
 	Filename string `yaml:"filename"`
+	Tags     []Tag
 }
 
 func CreateFromSubmission(sub *submissions.Submission) Manifest {
