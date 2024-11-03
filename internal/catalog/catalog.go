@@ -121,7 +121,7 @@ func (cat *CatalogEntry) Register(Db *sql.DB) error {
 		cat.manifest.UUID, cat.manifest.MD5, cat.manifest.SHA1,
 		cat.manifest.SHA256, cat.manifest.SHA512, cat.manifest.Filename, cat.manifest.TLP)
 	if err != nil {
-		log.Error("error registering catalog entryto database for <"+cat.name+">:", err)
+		log.Error("error registering catalog entryto database for <"+cat.name+">: ", err)
 		return err
 	}
 

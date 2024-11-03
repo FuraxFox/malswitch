@@ -24,7 +24,7 @@ type SubmissionAnalyzerContext struct {
 func (ctx *SubmissionAnalyzerContext) OpenDB() error {
 
 	pwd, _ := os.Getwd()
-	log.Debug("opening database " + ctx.DbPath + "(cwd:" + pwd + ")")
+	log.Debug("opening database " + ctx.DbPath + " (cwd:" + pwd + ")")
 
 	db, err := sql.Open("sqlite3", ctx.DbPath)
 	if err != nil {
@@ -33,6 +33,7 @@ func (ctx *SubmissionAnalyzerContext) OpenDB() error {
 	}
 
 	ctx.Db = db
+
 	// Create the catalog table if it doesn't exist
 	_, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS catalog (

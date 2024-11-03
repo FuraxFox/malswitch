@@ -91,6 +91,12 @@ func (ctx *SubmissionAnalyzerContext) ProcessSubmission(sub *submissions.Submiss
 		return err
 	}
 
+	err = cat.Register(ctx.Db)
+	if err != nil {
+		log.Error("error registering submission <"+sub.UUID+"> to catalog:", err)
+		return err
+	}
+
 	// remove the submission from the queue
 	err = sub.Dequeue(ctx.SubmissionsDir)
 	if err != nil {
