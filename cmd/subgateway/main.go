@@ -29,7 +29,7 @@ func main() {
 	log.Debug("Starting submission-gateway on " +
 		ctx.ServerListenAddr + "/" + ctx.ServerListenPath +
 		" queue_dir:'" + ctx.SubmissionsDir + "' temp_dir:'" + ctx.TempDir + "'")
-	http.DefaultServeMux.HandleFunc(LISTEN_PATH,
+	http.DefaultServeMux.HandleFunc(ctx.ServerListenPath,
 		func(w http.ResponseWriter, r *http.Request) {
 			SubmissionRequestHandler(w, r, &ctx)
 		})

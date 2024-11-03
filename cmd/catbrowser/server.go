@@ -7,13 +7,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
 )
 
 type CatalogEntry struct {
-	UUID   int    `json:"uuid"`
+	UUID   string `json:"uuid"`
 	MD5    string `json:"md5"`
 	SHA1   string `json:"sha1"`
 	SHA256 string `json:"sha256"`
@@ -68,6 +69,7 @@ func CatalogBrowserRequestHandler(w http.ResponseWriter, r *http.Request, ctx *C
 	// Query value
 	rows, err := ctx.Db.Query(query, args...)
 	if err != nil {
+		log.Error("database request error", err)
 		http.Error(w, "Database query error", http.StatusInternalServerError)
 		return
 	}
@@ -79,11 +81,13 @@ func CatalogBrowserRequestHandler(w http.ResponseWriter, r *http.Request, ctx *C
 		var entry CatalogEntry
 		err := rows.Scan(&entry.UUID, &entry.MD5, &entry.SHA1, &entry.SHA256, &entry.SHA512)
 		if err != nil {
+			log.Error("database scan error", err)
 			http.Error(w, "Database scan error", http.StatusInternalServerError)
 			return
 		}
 		entries = append(entries, entry)
 	}
+	log.Debug(fmt.Sprintf("returning %d entries", len(entries)))
 
 	json.NewEncoder(w).Encode(entries)
 

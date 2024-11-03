@@ -36,7 +36,7 @@ func main() {
 		ctx.ServerListenAddr + "/" + ctx.ServerListenPath +
 		" queue_dir:'" + ctx.CatalogDir + "' ")
 
-	http.DefaultServeMux.HandleFunc(LISTEN_PATH,
+	http.DefaultServeMux.HandleFunc(ctx.ServerListenPath,
 		func(w http.ResponseWriter, r *http.Request) {
 			CatalogBrowserRequestHandler(w, r, &ctx)
 		})
