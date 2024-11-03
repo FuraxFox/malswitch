@@ -4,9 +4,7 @@
 package main
 
 import (
-	"io"
 	"net/http"
-	"os"
 
 	"github.com/FuraxFox/malswitch/internal/submissions"
 	log "github.com/sirupsen/logrus"
@@ -41,40 +39,29 @@ func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request) {
 	// Get the TLP variable
 	tlp := r.FormValue("TLP")
 
+	// initialize submission object
 	sub, err := submissions.Create(filename, tlp, QUEUE_DIR, TEMP_DIR)
 	if err != nil {
 		log.Error("error initializing submission:", err)
 		http.Error(w, "Error initializing submission", http.StatusInternalServerError)
 		return
 	}
-	destFPath := sub.TempFilePath()
-
-	// Create a new file on disk
-	newFile, err := os.Create(destFPath)
+	// receive file data
+	err = sub.Receive(file, TEMP_DIR) // TODO pass a context to the server
 	if err != nil {
-		log.Error("error creating file:", err)
-		http.Error(w, "Error creating file", http.StatusInternalServerError)
+		log.Error("error receiveing file:", err)
+		http.Error(w, "Error receiving file", http.StatusInternalServerError)
 		return
 	}
-	log.Debug("received file stored as: " + destFPath)
-	defer newFile.Close()
-
-	// Copy the uploaded file to the new file
-	_, err = io.Copy(newFile, file)
-	if err != nil {
-		log.Error("error copying file:", err)
-		http.Error(w, "Error copying file", http.StatusInternalServerError)
-		return
-	}
-
-	err = sub.Hash()
+	// compute basic hashes
+	err = sub.Hash(TEMP_DIR)
 	if err != nil {
 		log.Error("error calculating hash:", err)
 		http.Error(w, "Error calculating hash", http.StatusInternalServerError)
 		return
 	}
-
-	err = sub.Enqueue(QUEUE_DIR)
+	// enqueue submission
+	err = sub.Enqueue(QUEUE_DIR, TEMP_DIR) // TODO get the parameters from context
 	if err != nil {
 		log.Error("error failed to enqueue:", err)
 		http.Error(w, "Failed to enqueue", http.StatusInternalServerError)

@@ -5,7 +5,14 @@
 
 package manifest
 
-import "github.com/FuraxFox/malswitch/internal/submissions"
+import (
+	"os"
+	"path/filepath"
+
+	"github.com/FuraxFox/malswitch/internal/submissions"
+	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
+)
 
 type Manifest struct {
 	UUID     string `yaml:"uuid"`
@@ -18,7 +25,7 @@ type Manifest struct {
 	Tags     []Tag
 }
 
-func CreateFromSubmission(sub *submissions.Submission) Manifest {
+func CreateFromSubmission(sub *submissions.Submission) *Manifest {
 	manif := Manifest{
 		UUID:     sub.UUID,
 		MD5:      sub.MD5,
@@ -28,5 +35,23 @@ func CreateFromSubmission(sub *submissions.Submission) Manifest {
 		TLP:      sub.TLP,
 		Filename: sub.Filename,
 	}
-	return manif
+	return &manif
+}
+
+func (m *Manifest) Save(dir string) error {
+
+	data, err := yaml.Marshal(m)
+	if err != nil {
+		log.Error("Error serializing for catalog entry<"+m.UUID+">:", err)
+		return err
+	}
+
+	// Write the content to the outgoing directory
+	outgoingFilename := filepath.Join(dir, "Manifest.yaml")
+	err = os.WriteFile(outgoingFilename, data, os.ModePerm)
+	if err != nil {
+		log.Error("Error writing catalog for submission<"+m.UUID+">:", err)
+		return err
+	}
+	return nil
 }

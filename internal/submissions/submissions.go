@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	_ "net/http"
 	"os"
 
 	"path/filepath"
@@ -26,15 +27,14 @@ import (
 )
 
 type Submission struct {
-	UUID       string `yaml:"uuid"`
-	MD5        string `yaml:"md5"`
-	SHA1       string `yaml:"sha1"`
-	SHA256     string `yaml:"sha255"`
-	SHA512     string `yaml:"sha512"`
-	TLP        string `yaml:"tlp"`
-	Filename   string `yaml:"filename"`
-	TempPath   string `json:"-" yaml:"-"`
-	QueuedPath string `json:"-" yaml:"-"`
+	UUID     string `yaml:"uuid"`
+	MD5      string `yaml:"md5"`
+	SHA1     string `yaml:"sha1"`
+	SHA256   string `yaml:"sha256"`
+	SHA512   string `yaml:"sha512"`
+	TLP      string `yaml:"tlp"`
+	Filename string `yaml:"filename"`
+	TempPath string `json:"-" yaml:"-"`
 }
 
 func Create(sampleFilename string, sampleTLP string, queueDir string, tempDir string) (*Submission, error) {
@@ -43,9 +43,9 @@ func Create(sampleFilename string, sampleTLP string, queueDir string, tempDir st
 		TLP:      sampleTLP,
 	}
 	s.UUID = uuid.NewString()
-	s.TempPath = filepath.Join(tempDir, s.UUID)
+	tempPath := filepath.Join(tempDir, s.UUID)
 
-	err := filehelpers.CreateDirIfNotExist(s.TempPath)
+	_, err := filehelpers.CreateDirIfNotExist(tempPath)
 	if err != nil {
 		log.Error("failed to create submission directory:", err)
 		return nil, err
@@ -55,12 +55,16 @@ func Create(sampleFilename string, sampleTLP string, queueDir string, tempDir st
 }
 
 func computeHash(f *os.File, algo hash.Hash) (string, error) {
-
+	// sending bytes to hasher
 	_, err := io.Copy(algo, f)
 	if err != nil {
 		log.Error("failed to copy file descriptor to compute hash:", err)
 		return "", err
 	}
+	// rewinding file
+	f.Seek(0, io.SeekStart)
+
+	// getting sum in hex
 	hashBytes := algo.Sum(nil)
 	hashString := fmt.Sprintf("%x", hashBytes)
 
@@ -68,15 +72,18 @@ func computeHash(f *os.File, algo hash.Hash) (string, error) {
 }
 
 // Calculate the various basic hashes of the file
-func (s *Submission) Hash() error {
+func (s *Submission) Hash(tempRoot string) error {
 
-	f, err := os.Open(s.TempFilePath())
+	// opening submitted file
+	binaryPath := s.TempSamplePath(tempRoot)
+	f, err := os.Open(binaryPath)
 	if err != nil {
-		log.Error("failed to open '"+s.TempFilePath()+"':", err)
+		log.Error("failed to open '"+binaryPath+"':", err)
 		return err
 	}
 	defer f.Close()
 
+	// hashing with various standard algorithms
 	hashString, err := computeHash(f, md5.New())
 	if err != nil {
 		log.Error("failed to compute MD5 hash:", err)
@@ -108,13 +115,56 @@ func (s *Submission) Hash() error {
 	return nil
 }
 
-func (s *Submission) TempFilePath() string {
-	return filepath.Join(s.TempPath, s.UUID+".bin")
+func (s *Submission) TempDirPath(tempRoot string) string {
+	return filepath.Join(tempRoot, s.UUID)
 }
 
-func (s *Submission) Dequeue() error {
+func (s *Submission) TempSamplePath(tempRoot string) string {
+	return filepath.Join(tempRoot, s.UUID, s.UUID+".bin")
+}
+
+func (s *Submission) QueuedPath(queueRoot string) string {
+	queuePath := filepath.Join(queueRoot, s.UUID)
+	return queuePath
+}
+
+func (s *Submission) QueuedSamplePath(queueRoot string) string {
+	queuePath := filepath.Join(queueRoot, s.UUID, s.SHA256+".bin")
+	return queuePath
+}
+
+func (s *Submission) Receive(file io.Reader /*file multipart.File*/, tempRoot string) error {
+
+	destFPath := s.TempSamplePath(tempRoot) // TODO pass a context to the server
+
+	// Create a new file on disk
+	newFile, err := os.Create(destFPath)
+	if err != nil {
+		log.Error("error creating file to receive submission:", err)
+		return err
+	}
+	log.Debug("received file stored as: " + destFPath)
+	defer newFile.Close()
+
+	// save the uploaded file to the new file
+	_, err = io.Copy(newFile, file)
+	if err != nil {
+		log.Error("error receiving data while for submission:", err)
+		return err
+	}
+	return nil
+}
+
+func (s *Submission) Dequeue(queueRoot string) error {
+	err := s.Lock(queueRoot)
+	if err != nil {
+		log.Error("failed to get lock on submission to enqueue:", err)
+		return err
+	}
+	defer s.Unlock(queueRoot)
+
 	// Remove the file if insertion succeeded
-	err := os.RemoveAll(s.QueuedPath)
+	err = os.RemoveAll(s.QueuedPath(queueRoot))
 	if err != nil {
 		log.Error("error removing file:", err)
 		return err
@@ -122,30 +172,32 @@ func (s *Submission) Dequeue() error {
 	return nil
 }
 
-func (s *Submission) Enqueue(queueRoot string) error {
-	err := s.Lock()
+func (s *Submission) Enqueue(queueRoot string, tempRoot string) error {
+
+	err := s.Lock(queueRoot)
 	if err != nil {
 		log.Error("failed to get lock on submission to enqueue:", err)
 		return err
 	}
-	defer s.Unlock()
+	defer s.Unlock(queueRoot)
 
 	// creating queue entry directory <queue>/<uuid>
-	queuePath := filepath.Join(queueRoot, s.UUID)
-	err = filehelpers.CreateDirIfNotExist(queuePath)
+	queuePath := s.QueuedPath(queueRoot)
+	_, err = filehelpers.CreateDirIfNotExist(queuePath)
 	if err != nil {
 		log.Error("failed to create submission directory:", err)
 		return err
 	}
 
 	// moving the file to <queue>/<uuid>/<sha256>.bin
-	queueFilename := filepath.Join(queuePath, s.SHA256+".bin")
-	err = os.Rename(s.TempFilePath(), queueFilename)
+	queueFilename := s.QueuedSamplePath(queueRoot)
+	tempFilename := s.TempSamplePath(tempRoot)
+	err = os.Rename(tempFilename, queueFilename)
 	if err != nil {
 		log.Error("failed to move submission to the queue directory:", err)
 		return err
 	}
-	log.Debug("submitted data file moved from: " + s.TempFilePath() + "  to:" + queueFilename)
+	log.Debug("submitted data file moved from: " + s.TempSamplePath(tempRoot) + "  to:" + queueFilename)
 
 	err = s.SaveManifest(queuePath)
 	if err != nil {
@@ -155,12 +207,13 @@ func (s *Submission) Enqueue(queueRoot string) error {
 	log.Debug("manifest saved to " + queuePath)
 
 	// cleanup
-	err = os.RemoveAll(s.TempPath)
+	tempPath := s.TempDirPath(tempRoot)
+	err = os.RemoveAll(tempPath)
 	if err != nil {
 		log.Error("failed to remove temporary submission files:", err)
 		return err
 	}
-	log.Debug("submission temporary path " + s.TempPath + " cleaned up")
+	log.Debug("submission temporary path " + tempPath + " cleaned up")
 	return err
 }
 
@@ -201,12 +254,12 @@ func (s *Submission) SaveManifest(dir string) error {
 	return nil
 }
 
-func (s *Submission) Lock() error {
-	return filehelpers.LockFile(s.QueuedPath)
+func (s *Submission) Lock(queueRoot string) error {
+	return filehelpers.LockFile(s.QueuedPath(queueRoot))
 }
 
-func (s *Submission) Unlock() error {
-	return filehelpers.UnlockFile(s.QueuedPath)
+func (s *Submission) Unlock(queueRoot string) error {
+	return filehelpers.UnlockFile(s.QueuedPath(queueRoot))
 }
 
 func Read(queuePath string) (*Submission, error) {
@@ -231,7 +284,6 @@ func Read(queuePath string) (*Submission, error) {
 		log.Error("failed to decode submission data:", err)
 		return nil, err
 	}
-	sub.QueuedPath = queuePath
 
 	return &sub, nil
 }

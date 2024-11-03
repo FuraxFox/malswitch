@@ -12,10 +12,9 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/FuraxFox/malswitch/internal/catalog"
 	"github.com/FuraxFox/malswitch/internal/submissions"
 	log "github.com/sirupsen/logrus"
-
-	"gopkg.in/yaml.v2"
 )
 
 func checkErr(err error) {
@@ -45,8 +44,8 @@ func (ctx *SubmissionAnalyzerContext) ReadSubmissions() ([]*submissions.Submissi
 	var subQueue []*submissions.Submission
 	for _, entry := range files {
 		filePath := filepath.Join(ctx.SubmissionsDir, entry.Name())
-		log.Debug("Checking '" + filePath + "' as a submission")
 		if entry.IsDir() {
+			log.Debug("Checking '" + filePath + "' as a submission")
 			// list the directory content: we expect 1.bin malware, 2.Submission.yaml nothing else
 			// TODO check directory content validity
 			sub, err := submissions.Read(filePath)
@@ -69,39 +68,37 @@ func (ctx *SubmissionAnalyzerContext) ProcessSubmission(sub *submissions.Submiss
 
 	// Display the content
 	log.Debug("file:", subDir)
-	fmt.Println(sub)
+	log.Debug("Submission :" + fmt.Sprintf("%#v", sub))
 
-	// Insert the data into the database
-	_, err := ctx.Db.Exec(
-		"INSERT INTO catalog (uuid, md5, sha1, sha256, sha512, filename, tlp) "+
-			" VALUES (?, ?, ?, ?, ?, ?, ?)",
-		sub.UUID, sub.MD5, sub.SHA1, sub.SHA256, sub.SHA512, sub.Filename, sub.TLP)
+	// creating the catalog entry from the submission
+	cat, err := catalog.CreateOrUpdateEntry(sub, ctx.SubmissionsDir, ctx.CatalogDir)
 	if err != nil {
-		log.Error("error inserting analyzer data to database for submission<"+sub.UUID+">:", err)
+		log.Error("error processing submission <"+sub.UUID+"> to catalog entry:", err)
 		return err
 	}
 
-	data, err := yaml.Marshal(sub)
+	// run the analysis
+	err = cat.Analyze(ctx.CatalogDir)
 	if err != nil {
-		fmt.Println("Error serializing for submission<"+sub.UUID+">:", err)
+		log.Error("error processing analyzing <"+sub.UUID+">:", err)
 		return err
 	}
 
-	// Write the content to the outgoing directory
-	outgoingFilename := filepath.Join(ctx.CatalogDir, filepath.Base(subDir))
-	err = os.WriteFile(outgoingFilename, data, os.ModePerm)
+	// write the catalog entry to disk
+	err = cat.Save(ctx.CatalogDir)
 	if err != nil {
-		fmt.Println("Error writing catalog for submission<"+sub.UUID+">:", err)
+		log.Error("error processing submission <"+sub.UUID+"> to catalog:", err)
 		return err
 	}
 
-	err = sub.Dequeue()
+	// remove the submission from the queue
+	err = sub.Dequeue(ctx.SubmissionsDir)
 	if err != nil {
-		fmt.Println("Error dequeing submission<"+sub.UUID+">:", err)
+		log.Error("error dequeing submission<"+sub.UUID+">:", err)
 		return err
 	}
 
-	fmt.Println(outgoingFilename + " imported to catalog for submission<" + sub.UUID + ">")
+	log.Info("submission<" + sub.UUID + "> imported to catalog as <" + cat.Name() + ">")
 
 	return nil
 }
