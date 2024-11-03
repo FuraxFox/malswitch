@@ -30,34 +30,9 @@ Learn by trying a software system that allow to easily manage a collection of ma
 * Signatures shall be Ed25519 signatures
 * User interface is not included: every interface is REST calls
 -----
------
 
-## Manifest file format
-
-Manifest is a YAML file.
-
-### Required tags
-
-* `LastChangeTime`
-* `SHA256`
-* `TLP`
-* `Filename(submission)`
-
-### Optionnal tags
-
-* `SHA512`
-* `SHA384`
-* `SHA1`
-* `MD5`
-* `FirstBytes`
-* `AssociatedGroups`
-* `Techniques`
-* `Names`
-* `Path(submission)`
-  
-### Signature
-
-1. Sort the tags
-2. TODO
+* [Architecture](doc/Architecture.md) - General program architecture and file organization 
+* [Community](doc/Community.md)       - Community and file sharing management
+* [File formats](doc/Fileformats.md)  - File formats of catalogued entries
 
 
