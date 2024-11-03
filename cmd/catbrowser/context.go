@@ -18,7 +18,9 @@ type CatalogBrowserContext struct {
 	DbPath           string
 	CatalogDir       string
 	ServerListenAddr string
-	ServerListenPath string
+
+	ServerCatalogListenPath  string
+	ServerDownloadListenPath string
 }
 
 func (ctx *CatalogBrowserContext) OpenDB() error {

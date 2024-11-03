@@ -36,7 +36,7 @@ func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request, ctx *Submi
 	defer file.Close()
 
 	// Get the TLP variable
-	tlp := r.FormValue("TLP")
+	tlp := r.FormValue("tlp")
 
 	// initialize submission object
 	sub, err := submissions.Create(filename, tlp, ctx.SubmissionsDir, ctx.TempDir)
