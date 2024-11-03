@@ -18,9 +18,20 @@ var TEMP_DIR string = "var/data/temp"
 
 func main() {
 	log.SetLevel(log.DebugLevel)
+
+	ctx := SubmissionServerContext{
+		ServerListenAddr: LISTEN_ADDR,
+		ServerListenPath: LISTEN_PATH,
+		TempDir:          TEMP_DIR,
+		SubmissionsDir:   QUEUE_DIR,
+	}
+
 	log.Debug("Starting submission-gateway on " +
-		LISTEN_ADDR + "/" + LISTEN_PATH +
-		" queue_dir:'" + QUEUE_DIR + "' temp_dir:'" + TEMP_DIR + "'")
-	http.DefaultServeMux.HandleFunc(LISTEN_PATH, SubmissionRequestHandler)
+		ctx.ServerListenAddr + "/" + ctx.ServerListenPath +
+		" queue_dir:'" + ctx.SubmissionsDir + "' temp_dir:'" + ctx.TempDir + "'")
+	http.DefaultServeMux.HandleFunc(LISTEN_PATH,
+		func(w http.ResponseWriter, r *http.Request) {
+			SubmissionRequestHandler(w, r, &ctx)
+		})
 	log.Fatal(http.ListenAndServe(LISTEN_ADDR, nil))
 }

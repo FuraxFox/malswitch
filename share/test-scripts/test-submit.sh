@@ -15,3 +15,5 @@ sleep 1
 echo "submit text with wrong TLP:PINK"
 curl -v -F "file=@sample3.txt" -F "TLP=PINK" "$TARGET"
 
+echo "done."
+

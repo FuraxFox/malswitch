@@ -10,10 +10,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request) {
+func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request, ctx *SubmissionServerContext) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-
 		return
 	}
 
@@ -40,28 +39,28 @@ func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request) {
 	tlp := r.FormValue("TLP")
 
 	// initialize submission object
-	sub, err := submissions.Create(filename, tlp, QUEUE_DIR, TEMP_DIR)
+	sub, err := submissions.Create(filename, tlp, ctx.SubmissionsDir, ctx.TempDir)
 	if err != nil {
 		log.Error("error initializing submission:", err)
 		http.Error(w, "Error initializing submission", http.StatusInternalServerError)
 		return
 	}
 	// receive file data
-	err = sub.Receive(file, TEMP_DIR) // TODO pass a context to the server
+	err = sub.Receive(file, ctx.TempDir)
 	if err != nil {
 		log.Error("error receiveing file:", err)
 		http.Error(w, "Error receiving file", http.StatusInternalServerError)
 		return
 	}
 	// compute basic hashes
-	err = sub.Hash(TEMP_DIR)
+	err = sub.Hash(ctx.TempDir)
 	if err != nil {
 		log.Error("error calculating hash:", err)
 		http.Error(w, "Error calculating hash", http.StatusInternalServerError)
 		return
 	}
 	// enqueue submission
-	err = sub.Enqueue(QUEUE_DIR, TEMP_DIR) // TODO get the parameters from context
+	err = sub.Enqueue(ctx.SubmissionsDir, ctx.TempDir)
 	if err != nil {
 		log.Error("error failed to enqueue:", err)
 		http.Error(w, "Failed to enqueue", http.StatusInternalServerError)
@@ -69,10 +68,6 @@ func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Info("submission received <TLP:", tlp, " Filename:", filename, " UUID:", sub.UUID, ">")
-	//fmt.Println("MD5 Hash:", sub.MD5)
-	//fmt.Println("SHA1 Hash:", sub.SHA1)
-	//fmt.Println("SHA256 Hash:", sub.SHA256)
-	//fmt.Println("SHA512 Hash:", sub.SHA512)
 	answer, err := sub.GetJSON()
 	if err != nil {
 		log.Error("Error generating response", err)

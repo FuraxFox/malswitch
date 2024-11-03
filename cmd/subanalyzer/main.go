@@ -14,7 +14,7 @@ import (
 
 var QUEUE_DIR string = "var/data/submissions"
 var TEMP_DIR string = "var/data/temp"
-var CAT_DIR string = "var/data/catalog"
+var CATALOG_DIR string = "var/data/catalog"
 var DB_PATH string = "var/databases/catalog.db"
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 	log.SetLevel(log.DebugLevel)
 
 	ctx := SubmissionAnalyzerContext{
-		CatalogDir:     CAT_DIR,
+		CatalogDir:     CATALOG_DIR,
 		TempDir:        TEMP_DIR,
 		SubmissionsDir: QUEUE_DIR,
 		DbPath:         DB_PATH,
@@ -33,8 +33,7 @@ func main() {
 
 	err := ctx.OpenDB()
 	if err != nil {
-		log.Error("error while opening DB:", err)
-		return
+		log.Panic("error while opening DB:", err)
 	}
 	defer ctx.CloseDB()
 
