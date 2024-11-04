@@ -89,7 +89,21 @@ func CatalogBrowserRequestHandler(w http.ResponseWriter, r *http.Request, ctx *C
 	}
 	log.Debug(fmt.Sprintf("returning %d entries", len(entries)))
 
-	json.NewEncoder(w).Encode(entries)
+	answer, err := json.Marshal(entries)
+	if err != nil {
+		log.Error("Error generating response", err)
+		http.Error(w, "Error generating response", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(answer)
+	if err != nil {
+		log.Error("error writing response:", err)
+		http.Error(w, "Error writing response", http.StatusInternalServerError)
+		return
+	}
 
 }
 
@@ -161,6 +175,20 @@ func DownloadRequestHandler(w http.ResponseWriter, r *http.Request, ctx *Catalog
 	}
 	log.Debug(fmt.Sprintf("returning %d entries", len(entries)))
 
-	json.NewEncoder(w).Encode(entries)
+	answer, err := json.Marshal(entries)
+	if err != nil {
+		log.Error("Error generating response", err)
+		http.Error(w, "Error generating response", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(answer)
+	if err != nil {
+		log.Error("error writing response:", err)
+		http.Error(w, "Error writing response", http.StatusInternalServerError)
+		return
+	}
 
 }

@@ -76,6 +76,7 @@ func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request, ctx *Submi
 	}
 
 	// writing response
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(answer)
 	if err != nil {

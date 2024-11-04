@@ -42,5 +42,10 @@ func main() {
 		func(w http.ResponseWriter, r *http.Request) {
 			DownloadRequestHandler(w, r, &ctx)
 		})
+	http.DefaultServeMux.HandleFunc(ctx.ServerCatalogListenPath,
+		func(w http.ResponseWriter, r *http.Request) {
+			CatalogBrowserRequestHandler(w, r, &ctx)
+		})
+
 	log.Fatal(http.ListenAndServe(LISTEN_ADDR, nil))
 }

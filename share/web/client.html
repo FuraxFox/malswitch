@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+      <title>MalSwitch client</title>
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+      <style>
+        body { 
+          padding-top: 70px;         
+          font-family: helvetica, sans-serif;
+        }
+
+      </style>      
+  </head>
+<body>   
+  <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
+    &nbsp;
+    <a class="navbar-brand" href="#">Malswitch control panel</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button> 
+  </nav>
+
+<main role="main" class="container">
+  <div class="bg-body-tertiary p-5 rounded">
+    
+    <div id="submissions" class='parameters'>       
+        <h2>Submit a sample</h2>
+        <!--<form enctype="multipart/form-data"> -->
+        <div  class="form-group">
+            <label for="file">Sample</label>
+            <input type="file" id="file" name="file" class="form-control-file"  >
+        </div><div class="form-group">
+            <label for="tlp">TLP</label>
+            <select id="tlp" name="tlp" class="form-control">
+              <option value="clear">CLEAR</option>
+              <option value="green">GREEN</option>
+              <option value="amber">AMBER</option>
+              <option value="amber+strict">AMBER+STRICT</option>
+              <option value="red">RED</option>
+            </select> 
+        </div>
+        <button id="button-submit-sample" class="btn btn-primary" id='button-submit-sample'>Upload</button>        
+       <!--</form>-->
+    </div>
+    <hr>
+    <div id="catalog" class='parameters'>
+        <h2>Search</h2>
+        <!--<form>-->
+        <div class="form-group">
+            <label for="search-uuid">Submission ID</label>          
+            <input id="search-uuid"         type="text" name="uuid"   value="" class="form-control" placeholder="Submission ID"> 
+        </div><div class="form-group">
+            <label for="search-md5-hash">MD5</label>       
+            <input id="search-md5-hash"     type="text" name="md5"    value="" class="form-control" placeholder="MD5 hash"> 
+          </div><div class="form-group">
+            <label for="search-sha1-hash">SHA1</label>     
+            <input id="search-sha1-hash"    type="text" name="sha1"   value="" class="form-control" placeholder="SHA1 hash">  
+          </div><div class="form-group">
+            <label for="search-sha256-hash">SHA256</label> 
+            <input id="search-sha256-hash"  type="text" name="sha256" value="" class="form-control" placeholder="SHA256 hash"> 
+          </div><div class="form-group">
+            <label for="search-sha512-hash">SHA512</label> 
+            <input id="search-sha512'hash"  type="text" name="sha512" value="" class="form-control" placeholder="SHA512 hash">
+          </div>
+          <button id="button-search-catalog" class="btn btn-primary"  id='button-search-catalog'>Lookup</button>
+        <!--</form>-->
+    </div>
+    <hr>
+    <div id="download" class='parameters'>
+        <h2>Sample download</h2>
+        <!--<form>-->
+          <div class="form-group">
+            <label for="download-sha256-hash">SHA256</label>
+            <input id="download-sha256-hash" type="text" size='64' name="sha256" value="" class="form-control" placeholder="SHA256 hash">
+          </div>      
+          <button  class="btn btn-primary" id="button-download-sample">Download</button>
+        <!--</form>-->
+    </div>
+  </div>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script> 
+
+<script>
+       $('#button-submit-sample').on('click', function(e) {
+            alert("submit sample");
+            var parameters = { hashname: hashval };            
+            $.post('http://127.0.0.1:8080/submission', parameters, 
+              (data, status) => {
+                console.log( "data: " + data + " / status: " +  status);
+              }
+            );
+       });
+
+       $('#button-search-catalog').on('click', function(e) {
+            alert("search catalog");
+            var hashes = [ 'md5', 'sha1', 'sha256', 'sha512'];            
+            for( const hashname of hashes ) {
+              inputid = 'search-' + hashname + "-hash";
+              hashval = $(inputid).val()
+              if( hashval != '' ){ break; }
+            }
+            
+            var parameters = { hashname: hashval }; 
+            $.post('http://127.0.0.1:8081/catalog', parameters, 
+              (data, status) => {
+                console.log( "data: " + data + " / status: " +  status);
+              }
+            );
+       });
+ 
+       $('#button-download-sample').on('click', function(e) {
+            alert("download sample");
+            hashval = $('download-sha256-hash').val();
+
+            var parameters = { sha256: hashval };
+            $.post('http://127.0.0.1:8081/download', parameters, 
+              (data, status) => {
+                console.log( "data: " + data + " / status: " +  status);
+              }
+            );
+       });
+ 
+</script>
+
+</body>
+</html>
