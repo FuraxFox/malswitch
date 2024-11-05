@@ -43,6 +43,7 @@ func (ctx *SubmissionAnalyzerContext) OpenDB() error {
 			sha256   TEXT,
 			sha512   TEXT,
             filename TEXT,
+			size     INT,
             tlp      TEXT
         )
     `)

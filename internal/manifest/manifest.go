@@ -15,13 +15,14 @@ import (
 )
 
 type Manifest struct {
-	UUID     string `yaml:"uuid"`
-	MD5      string `yaml:"md5"`
-	SHA1     string `yaml:"sha1"`
-	SHA256   string `yaml:"sha256"`
-	SHA512   string `yaml:"sha512"`
-	TLP      string `yaml:"tlp"`
-	Filename string `yaml:"filename"`
+	UUID     string `yaml:"uuid"     json:"uuid"`
+	MD5      string `yaml:"md5"      json:"md5"`
+	SHA1     string `yaml:"sha1"     json:"sha1"`
+	SHA256   string `yaml:"sha256"   json:"sha256" `
+	SHA512   string `yaml:"sha512"   json:"sha512"`
+	TLP      string `yaml:"tlp"      json:"tlp"`
+	Size     int64  `yaml:"size"     json:"size"`
+	Filename string `yaml:"filename" json:"filename"`
 	Tags     []Tag
 }
 
@@ -34,6 +35,7 @@ func CreateFromSubmission(sub *submissions.Submission) *Manifest {
 		SHA512:   sub.SHA512,
 		TLP:      sub.TLP,
 		Filename: sub.Filename,
+		Size:     sub.Size,
 	}
 	return &manif
 }

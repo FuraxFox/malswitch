@@ -20,20 +20,33 @@ type CatalogEntry struct {
 	SHA256 string `json:"sha256"`
 	SHA512 string `json:"sha512"`
 	TLP    string `json:"tlp"`
+	Size   int64  `json:"size"`
 	// ... other fields as needed
 }
 
 func CatalogBrowserRequestHandler(w http.ResponseWriter, r *http.Request, ctx *CatalogBrowserContext) {
-	if r.Method == "GET" {
-		log.Debug("GET request received")
+
+	if r.Method == "OPTIONS" {
+		// preflight request
+		headers := w.Header()
+		headers.Add("Access-Control-Allow-Origin", "*")
+		headers.Add("Vary", "Origin")
+		headers.Add("Vary", "Access-Control-Request-Method")
+		headers.Add("Vary", "Access-Control-Request-Headers")
+		headers.Add("Access-Control-Allow-Headers", "Content-Type, Origin, Accept, token")
+		headers.Add("Access-Control-Allow-Methods", "GET, POST,OPTIONS")
+		w.WriteHeader(http.StatusOK)
+		return
+	} else if r.Method == "GET" {
+		log.Debug("GET request received for catalog browser")
 	} else if r.Method == "POST" {
-		log.Debug("POST request received")
+		log.Debug("POST request received for catalog browser")
 	} else {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	query := "SELECT uuid, md5, sha1, sha256, sha512 FROM catalog"
+	query := "SELECT uuid, md5, sha1, sha256, sha512, tlp, size FROM catalog"
 	args := []interface{}{}
 
 	// Building request
@@ -79,7 +92,7 @@ func CatalogBrowserRequestHandler(w http.ResponseWriter, r *http.Request, ctx *C
 	var entries []CatalogEntry
 	for rows.Next() {
 		var entry CatalogEntry
-		err := rows.Scan(&entry.UUID, &entry.MD5, &entry.SHA1, &entry.SHA256, &entry.SHA512)
+		err := rows.Scan(&entry.UUID, &entry.MD5, &entry.SHA1, &entry.SHA256, &entry.SHA512, &entry.TLP, &entry.Size)
 		if err != nil {
 			log.Error("database scan error", err)
 			http.Error(w, "Database scan error", http.StatusInternalServerError)
@@ -91,7 +104,7 @@ func CatalogBrowserRequestHandler(w http.ResponseWriter, r *http.Request, ctx *C
 
 	answer, err := json.Marshal(entries)
 	if err != nil {
-		log.Error("Error generating response", err)
+		log.Error("error generating response", err)
 		http.Error(w, "Error generating response", http.StatusInternalServerError)
 		return
 	}
@@ -108,10 +121,20 @@ func CatalogBrowserRequestHandler(w http.ResponseWriter, r *http.Request, ctx *C
 }
 
 func DownloadRequestHandler(w http.ResponseWriter, r *http.Request, ctx *CatalogBrowserContext) {
-	if r.Method == "GET" {
-		log.Debug("GET request received")
+	if r.Method == "OPTIONS" {
+		// preflight request
+		headers := w.Header()
+		headers.Add("Access-Control-Allow-Origin", "*")
+		headers.Add("Vary", "Origin")
+		headers.Add("Vary", "Access-Control-Request-Method")
+		headers.Add("Vary", "Access-Control-Request-Headers")
+		headers.Add("Access-Control-Allow-Headers", "Content-Type, Origin, Accept, token")
+		headers.Add("Access-Control-Allow-Methods", "GET, POST,OPTIONS")
+		w.WriteHeader(http.StatusOK)
+	} else if r.Method == "GET" {
+		log.Debug("GET request received for sample download")
 	} else if r.Method == "POST" {
-		log.Debug("POST request received")
+		log.Debug("POST request received for sample download")
 	} else {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return

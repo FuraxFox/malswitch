@@ -7,6 +7,7 @@ package catalog
 
 import (
 	"database/sql"
+	"fmt"
 	"path/filepath"
 
 	"github.com/FuraxFox/malswitch/internal/filehelpers"
@@ -117,9 +118,11 @@ func (cat *CatalogEntry) Register(Db *sql.DB) error {
 
 	// Insert the data into the database
 	_, err := Db.Exec(
-		"INSERT INTO catalog (uuid, md5, sha1, sha256, sha512, filename, tlp) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		cat.manifest.UUID, cat.manifest.MD5, cat.manifest.SHA1,
-		cat.manifest.SHA256, cat.manifest.SHA512, cat.manifest.Filename, cat.manifest.TLP)
+		"INSERT INTO catalog (uuid, md5, sha1, sha256, sha512, size, filename, tlp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		cat.manifest.UUID,
+		cat.manifest.MD5, cat.manifest.SHA1, cat.manifest.SHA256, cat.manifest.SHA512,
+		cat.manifest.Size, cat.manifest.Filename, cat.manifest.TLP)
+	log.Debug("registering: " + cat.manifest.UUID + "(TLP:" + cat.manifest.TLP + ", size:" + fmt.Sprintf("%d", cat.manifest.Size) + ")")
 	if err != nil {
 		log.Error("error registering catalog entryto database for <"+cat.name+">: ", err)
 		return err

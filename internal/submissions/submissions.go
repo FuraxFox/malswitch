@@ -27,13 +27,14 @@ import (
 )
 
 type Submission struct {
-	UUID     string `yaml:"uuid"`
-	MD5      string `yaml:"md5"`
-	SHA1     string `yaml:"sha1"`
-	SHA256   string `yaml:"sha256"`
-	SHA512   string `yaml:"sha512"`
-	TLP      string `yaml:"tlp"`
-	Filename string `yaml:"filename"`
+	UUID     string `yaml:"uuid"     json:"uuid"`
+	MD5      string `yaml:"md5"      json:"md5"`
+	SHA1     string `yaml:"sha1"     json:"sha1"`
+	SHA256   string `yaml:"sha256"   json:"sha256"`
+	SHA512   string `yaml:"sha512"   json:"sha512"`
+	TLP      string `yaml:"tlp"      json:"tlp"`
+	Size     int64  `yaml:"size"     json:"size"`
+	Filename string `yaml:"filename" json:"filename"`
 	TempPath string `json:"-" yaml:"-"`
 }
 
@@ -152,6 +153,15 @@ func (s *Submission) Receive(file io.Reader /*file multipart.File*/, tempRoot st
 		log.Error("error receiving data while for submission:", err)
 		return err
 	}
+
+	// compute file size
+	fi, err := newFile.Stat()
+	if err != nil {
+		log.Error("error calculating file size:", err)
+		return err
+	}
+	s.Size = fi.Size()
+
 	return nil
 }
 

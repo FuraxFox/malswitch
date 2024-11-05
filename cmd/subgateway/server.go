@@ -11,7 +11,19 @@ import (
 )
 
 func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request, ctx *SubmissionServerContext) {
-	if r.Method != "POST" {
+
+	if r.Method == "OPTIONS" {
+		// preflight request
+		headers := w.Header()
+		headers.Add("Access-Control-Allow-Origin", "*")
+		headers.Add("Vary", "Origin")
+		headers.Add("Vary", "Access-Control-Request-Method")
+		headers.Add("Vary", "Access-Control-Request-Headers")
+		headers.Add("Access-Control-Allow-Headers", "Content-Type, Origin, Accept, token")
+		headers.Add("Access-Control-Allow-Methods", "GET, POST,OPTIONS")
+		w.WriteHeader(http.StatusOK)
+		return
+	} else if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -26,7 +38,7 @@ func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request, ctx *Submi
 		return
 	}
 	// Get the uploaded file
-	file, handler, err := r.FormFile("file")
+	file, handler, err := r.FormFile("sample")
 	if err != nil {
 		log.Error("no file uploaded:", err)
 		http.Error(w, "No file uploaded", http.StatusBadRequest)
@@ -52,6 +64,7 @@ func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request, ctx *Submi
 		http.Error(w, "Error receiving file", http.StatusInternalServerError)
 		return
 	}
+
 	// compute basic hashes
 	err = sub.Hash(ctx.TempDir)
 	if err != nil {

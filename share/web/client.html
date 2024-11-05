@@ -10,7 +10,12 @@
           padding-top: 70px;         
           font-family: helvetica, sans-serif;
         }
-
+        div.result-area {
+            background-color: lightgrey;
+            min-height: 12em;
+            min-width: 128ex;
+            padding: 0.5ex;
+        }
       </style>      
   </head>
 <body>   
@@ -27,22 +32,24 @@
     
     <div id="submissions" class='parameters'>       
         <h2>Submit a sample</h2>
-        <!--<form enctype="multipart/form-data"> -->
-        <div  class="form-group">
-            <label for="file">Sample</label>
-            <input type="file" id="file" name="file" class="form-control-file"  >
-        </div><div class="form-group">
-            <label for="tlp">TLP</label>
-            <select id="tlp" name="tlp" class="form-control">
-              <option value="clear">CLEAR</option>
-              <option value="green">GREEN</option>
-              <option value="amber">AMBER</option>
-              <option value="amber+strict">AMBER+STRICT</option>
-              <option value="red">RED</option>
-            </select> 
-        </div>
-        <button id="button-submit-sample" class="btn btn-primary" id='button-submit-sample'>Upload</button>        
-       <!--</form>-->
+        <form enctype="multipart/form-data" id="submit-sample-form"> 
+          <div  class="form-group" >
+              <label for="sample">Sample</label>
+              <input type="file" id="sample" name="sample" class="form-control-file"  >
+          </div><div class="form-group">
+              <label for="tlp">TLP</label>
+              <select id="tlp" name="tlp" class="form-control">
+                <option value="clear">CLEAR</option>
+                <option value="green">GREEN</option>
+                <option value="amber">AMBER</option>
+                <option value="amber+strict">AMBER+STRICT</option>
+                <option value="red">RED</option>
+              </select> 
+          </div>
+          <button id="button-submit-sample" class="btn btn-primary" id='button-submit-sample'>Upload</button>        
+          <progress value="0"></progress>
+       </form>
+       <div id="submission-result" class="result-area"></div>
     </div>
     <hr>
     <div id="catalog" class='parameters'>
@@ -66,6 +73,7 @@
           </div>
           <button id="button-search-catalog" class="btn btn-primary"  id='button-search-catalog'>Lookup</button>
         <!--</form>-->
+        <div id="search-result" class="result-area"></div>
     </div>
     <hr>
     <div id="download" class='parameters'>
@@ -77,6 +85,7 @@
           </div>      
           <button  class="btn btn-primary" id="button-download-sample">Download</button>
         <!--</form>-->
+        <div><a id='downloader'>&nbsp;</a></div>
     </div>
   </div>
 
@@ -86,43 +95,152 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script> 
 
 <script>
-       $('#button-submit-sample').on('click', function(e) {
-            alert("submit sample");
-            var parameters = { hashname: hashval };            
-            $.post('http://127.0.0.1:8080/submission', parameters, 
+    
+
+    // request an export version of the posture and download it
+    function ExportSample() {        
+        // from raw data to file download
+        function downloadBlob(filename,mime_type,data) {
+            console.log("downloading data as "+filename+" of type:"+mime_type)
+            //Convert the Byte Data to BLOB object.
+            var blob = new Blob([data], { type: mime_type }); 
+            var url = window.URL || window.webkitURL;
+            link = url.createObjectURL(blob);
+
+            // then create a link to the blob and click it
+            // its ugly but it works !
+            var a = document.getElementById("downloader")
+            a.setAttribute("download", filename);
+            a.setAttribute("href", link);
+            a.click();            
+        }
+        function exportFilename(hash) {                    
+            filename= "sample-"+hash+".bin"
+            console.log("export filename ( sha256:"+hash+" ) = '"+filename+"'")            
+            return filename
+        }
+        ///////////
+
+        hash = $('#download-sha256-hash').val();
+        parameters = { 'sha256': hash }
+                           
+        $.get('http://127.0.0.1:8081/download', parameters, 
               (data, status) => {
                 console.log( "data: " + data + " / status: " +  status);
+                if( status ) {              
+                  filename = exportFilename(hash);                
+                  downloadBlob(filename, "application/octet-stream", data);
+                }
               }
             );
+    }
+    /////
+    function SubmitSample(){
+
+        var tlp = $('#tlp').val()
+
+        var fd = new FormData(); 
+        var files = $('#sample')[0].files[0]; 
+        fd.append('sample', files); 
+        fd.append('tlp', tlp)
+        
+        $.ajax({
+
+          url: 'http://127.0.0.1:8080/submissions',
+          type: 'POST',
+
+          // Form data
+          data: fd,
+          
+          // Tell jQuery not to process data or worry about content-type
+          // You *must* include these options!
+          cache: false,
+          contentType: false,
+          processData: false,
+          // success handler
+          success: function(response){ 
+                if(response != 0){          
+                  var uuid = response["uuid"]
+                  
+                  // building result display                
+                  content="<table>\n"
+                  for( var entry in response) {
+                    content +="<tr><th>" + entry +"</th><td>"+ response[entry]+"</td></tr>\n"
+                  }
+                  content += "</table>\n"                  
+                  $("#submission-result").html( content);
+                  alert('sample submitted as '+uuid); 
+                } else{ 
+                  alert('sample not uploaded'); 
+                } 
+            }, 
+          // Custom XMLHttpRequest
+          xhr: function () {
+
+            var myXhr = $.ajaxSettings.xhr();
+            if (myXhr.upload) {
+              // For handling the progress of the upload
+              myXhr.upload.addEventListener('progress', function (e) {
+                if (e.lengthComputable) {
+                  $('progress').attr({
+                    value: e.loaded,
+                    max: e.total,
+                  });
+                }
+              }, false);
+            }
+            return myXhr;
+          }
+        });
+      }
+      /////
+      function SearchCatalog() {
+        var criterias = [ 'uuid', 'md5', 'sha1', 'sha256', 'sha512'];            
+            var critname
+            for( critname of criterias ) {
+              var inputid = '#search-' + critname + "-hash";
+              var critval = $(inputid).val()
+              if( critval &&  critval != '' ){ break; }
+            }
+            console.log("searching for " + critname + "of value "+critval)
+            
+            var parameters = {}
+            parameters[critname] = critval; 
+
+            $.get('http://127.0.0.1:8081/catalog?'+critname+"="+critval, parameters, 
+              (data, status) => {
+                console.log( "data: " + JSON.stringify(data) + " / status: " +  status);
+                if( status == "success") {
+                  var content = ""
+                  for( var i in data ) {
+                    content+="<table>\n"
+                    var entry = data[i];
+                    for( var field in entry) {
+                      content +="<tr><th>" + field +"</th><td>"+ entry[field]+"</td></tr>\n"
+                    }
+                    content += "</table>\n<hr>";
+                  }
+                  $("#search-result").html(content)
+
+                }
+              }
+            );
+      }
+      /////
+
+       $('#button-submit-sample').on('click', function(e) {
+            SubmitSample();
+            return false;
        });
 
        $('#button-search-catalog').on('click', function(e) {
-            alert("search catalog");
-            var hashes = [ 'md5', 'sha1', 'sha256', 'sha512'];            
-            for( const hashname of hashes ) {
-              inputid = 'search-' + hashname + "-hash";
-              hashval = $(inputid).val()
-              if( hashval != '' ){ break; }
-            }
-            
-            var parameters = { hashname: hashval }; 
-            $.post('http://127.0.0.1:8081/catalog', parameters, 
-              (data, status) => {
-                console.log( "data: " + data + " / status: " +  status);
-              }
-            );
+            SearchCatalog();
+            return false;            
        });
  
-       $('#button-download-sample').on('click', function(e) {
-            alert("download sample");
-            hashval = $('download-sha256-hash').val();
-
-            var parameters = { sha256: hashval };
-            $.post('http://127.0.0.1:8081/download', parameters, 
-              (data, status) => {
-                console.log( "data: " + data + " / status: " +  status);
-              }
-            );
+       $('#button-download-sample').on('click', function(e) {            
+            ExportSample();
+            return false;
        });
  
 </script>
