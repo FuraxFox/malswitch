@@ -88,6 +88,36 @@
         <div><a id='downloader'>&nbsp;</a></div>
     </div>
   </div>
+  <hr>
+  <div id="browser" class='parameters'>
+      <h2>Browser</h2>
+      <!--<form>-->
+        <!-- -->
+        <ul class="list-group" id="entries">
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            Cras justo odio
+            <span class="badge badge-primary badge-pill">14</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            Dapibus ac facilisis in
+            <span class="badge badge-primary badge-pill">2</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            Morbi leo risus
+            <span class="badge badge-primary badge-pill">1</span>
+          </li>
+        </ul>
+        <!-- -->
+
+        <div class="form-group">
+          <label for="download-sha256-hash">SHA256</label>
+          <input id="download-sha256-hash" type="text" size='64' name="sha256" value="" class="form-control" placeholder="SHA256 hash">
+        </div>      
+        <button  class="btn btn-primary" id="button-download-sample">Download</button>
+      <!--</form>-->
+      <div><a id='downloader'>&nbsp;</a></div>
+  </div>
+</div>
 
 </main>
 
@@ -227,7 +257,20 @@
             );
       }
       /////
-
+      function GetElements() {
+          console.log("loading entries list")          
+          $.get('http://127.0.0.1:8081/catalog?'+critname+"="+critval, {}, 
+            (data, status) => {
+              console.log( "data: " + JSON.stringify(data) + " / status: " +  status);
+              if( status == "success") {
+                var content = ""
+                return data
+              }
+            }
+          );
+          return {};
+      }
+      /////
        $('#button-submit-sample').on('click', function(e) {
             SubmitSample();
             return false;

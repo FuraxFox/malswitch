@@ -2,7 +2,7 @@
 #
 #
 
-TARGET=http://127.0.0.1:8080/submission-queue
+TARGET=http://127.0.0.1:8080/submissions
 
 echo "submit text as TLP:RED"
 curl -v -F "sample=@sample1.txt" -F "TLP=RED" "$TARGET"
