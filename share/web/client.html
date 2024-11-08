@@ -29,7 +29,7 @@
 
 <main role="main" class="container">
   <div class="bg-body-tertiary p-5 rounded">
-    
+
     <div id="submissions" class='parameters'>       
         <h2>Submit a sample</h2>
         <form enctype="multipart/form-data" id="submit-sample-form"> 
@@ -50,11 +50,25 @@
           <progress value="0"></progress>
        </form>
        <div id="submission-result" class="result-area"></div>
+       <button  class="btn btn-primary" id="button-download-sample">Download</button>
+       <div id="downloader">
+        <input id="download-sha256-hash" type="hidden"  name="sha256" value="" class="form-control" placeholder="SHA256 hash">        
+        <div><a id='downloader'>&nbsp;</a></div>
+      </div>      
+  
+    </div>
+    <hr>    
+    <div id="browser" class='parameters'></div>
+      <h2>Samples catalog</h2>
+        <!-- -->
+        <ul class="list-group" id="sample-browser-list"></ul>
+        <!-- -->
+        <button  class="btn btn-primary" id="button-refresh-browser">Force refresh</button>
+        
     </div>
     <hr>
     <div id="catalog" class='parameters'>
-        <h2>Search</h2>
-        <!--<form>-->
+        <h2>Advanced Search</h2>
         <div class="form-group">
             <label for="search-uuid">Submission ID</label>          
             <input id="search-uuid"         type="text" name="uuid"   value="" class="form-control" placeholder="Submission ID"> 
@@ -69,66 +83,53 @@
             <input id="search-sha256-hash"  type="text" name="sha256" value="" class="form-control" placeholder="SHA256 hash"> 
           </div><div class="form-group">
             <label for="search-sha512-hash">SHA512</label> 
-            <input id="search-sha512'hash"  type="text" name="sha512" value="" class="form-control" placeholder="SHA512 hash">
+            <input id="search-sha512-hash"  type="text" name="sha512" value="" class="form-control" placeholder="SHA512 hash">
           </div>
           <button id="button-search-catalog" class="btn btn-primary"  id='button-search-catalog'>Lookup</button>
-        <!--</form>-->
         <div id="search-result" class="result-area"></div>
     </div>
     <hr>
-    <div id="download" class='parameters'>
-        <h2>Sample download</h2>
-        <!--<form>-->
-          <div class="form-group">
-            <label for="download-sha256-hash">SHA256</label>
-            <input id="download-sha256-hash" type="text" size='64' name="sha256" value="" class="form-control" placeholder="SHA256 hash">
-          </div>      
-          <button  class="btn btn-primary" id="button-download-sample">Download</button>
-        <!--</form>-->
-        <div><a id='downloader'>&nbsp;</a></div>
-    </div>
   </div>
   <hr>
-  <div id="browser" class='parameters'>
-      <h2>Browser</h2>
-      <!--<form>-->
-        <!-- -->
-        <ul class="list-group" id="entries">
-          <li class="list-group-item d-flex justify-content-between align-items-center">
-            Cras justo odio
-            <span class="badge badge-primary badge-pill">14</span>
-          </li>
-          <li class="list-group-item d-flex justify-content-between align-items-center">
-            Dapibus ac facilisis in
-            <span class="badge badge-primary badge-pill">2</span>
-          </li>
-          <li class="list-group-item d-flex justify-content-between align-items-center">
-            Morbi leo risus
-            <span class="badge badge-primary badge-pill">1</span>
-          </li>
-        </ul>
-        <!-- -->
-
-        <div class="form-group">
-          <label for="download-sha256-hash">SHA256</label>
-          <input id="download-sha256-hash" type="text" size='64' name="sha256" value="" class="form-control" placeholder="SHA256 hash">
-        </div>      
-        <button  class="btn btn-primary" id="button-download-sample">Download</button>
-      <!--</form>-->
-      <div><a id='downloader'>&nbsp;</a></div>
-  </div>
 </div>
-
 </main>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script> 
-
 <script>
-    
+/////
+  function RefreshFileCatalog() {
+    $.get('http://127.0.0.1:8081/catalog', {}, 
+    (data, status) => {
+      //console.log( "data: " + JSON.stringify(data) + " / status: " +  status);
+      if( status == "success") {
+        samples = data
+        $("#sample-browser-list").empty();
+        var ul = $("ul");
+        for(idx in samples){ 
+          var sample = samples[idx]
+          //console.log(": >" + JSON.stringify(sample));
+          //console.log("------------------------>>")
+          var li = $("<li class='list-group-item d-flex justify-content-between align-items-center' ref='"+sample["sha256"]+"''>"+
+              "<a class='sample-link' ref='"+sample["sha256"]+"' href='#'>"+sample["sha256"]+"</a>"+
+              "<span class='tlp tlp-"+sample['tlp']+"'>TLP-"+sample['tlp']+"</span>"+
+              "<span class='badge badge-primary badge-pill'>size:"+sample["size"]+
+              "</li>")
 
-    // request an export version of the posture and download it
-    function ExportSample() {        
+            $("#sample-browser-list").append(li);
+        }
+
+       } else {
+        console.log("call to catalog backend failed")
+        result =  {}
+       }
+    }
+  );       
+}
+
+
+/////
+  // request an export version of the posture and download it
+  function ExportSample() {        
         // from raw data to file download
         function downloadBlob(filename,mime_type,data) {
             console.log("downloading data as "+filename+" of type:"+mime_type)
@@ -156,16 +157,42 @@
                            
         $.get('http://127.0.0.1:8081/download', parameters, 
               (data, status) => {
-                console.log( "data: " + data + " / status: " +  status);
+                //( "data: " + data + " / status: " +  status);
                 if( status ) {              
                   filename = exportFilename(hash);                
                   downloadBlob(filename, "application/octet-stream", data);
                 }
               }
             );
+  }
+////
+function showSample(sample){                  
+  content="<table>\n"
+  for( var entry in sample) {
+     content +="<tr><th>" + entry +"</th><td>"+ sample[entry]+"</td></tr>\n"
+  }
+  content += "</table>\n"                  
+   $("#submission-result").html( content);
+
+   $('#download-sha256-hash').val(sample['sha256']);
+}
+
+function showSampleByRef(ref){
+  $.get('http://127.0.0.1:8081/catalog?sha256='+ref, {}, 
+    (data, status) => {
+      //console.log( "data: " + JSON.stringify(data) + " / status: " +  status);
+      if( status == "success") {
+        samples = data
+        showSample(samples[0])
+       } else {
+        console.log("call to catalog backend failed")
+       }
     }
-    /////
-    function SubmitSample(){
+  );  
+}
+
+/////
+  function SubmitSample(){
 
         var tlp = $('#tlp').val()
 
@@ -191,17 +218,11 @@
           success: function(response){ 
                 if(response != 0){          
                   var uuid = response["uuid"]
-                  
-                  // building result display                
-                  content="<table>\n"
-                  for( var entry in response) {
-                    content +="<tr><th>" + entry +"</th><td>"+ response[entry]+"</td></tr>\n"
-                  }
-                  content += "</table>\n"                  
-                  $("#submission-result").html( content);
-                  alert('sample submitted as '+uuid); 
+                  showSample(response)                 
+                  alert('sample accepted as '+uuid); 
+                  RefreshFileCatalog();
                 } else{ 
-                  alert('sample not uploaded'); 
+                  alert('sample not accepted'); 
                 } 
             }, 
           // Custom XMLHttpRequest
@@ -223,8 +244,8 @@
           }
         });
       }
-      /////
-      function SearchCatalog() {
+/////
+  function SearchCatalog() {
         var criterias = [ 'uuid', 'md5', 'sha1', 'sha256', 'sha512'];            
             var critname
             for( critname of criterias ) {
@@ -239,7 +260,7 @@
 
             $.get('http://127.0.0.1:8081/catalog?'+critname+"="+critval, parameters, 
               (data, status) => {
-                console.log( "data: " + JSON.stringify(data) + " / status: " +  status);
+                //console.log( "data: " + JSON.stringify(data) + " / status: " +  status);
                 if( status == "success") {
                   var content = ""
                   for( var i in data ) {
@@ -256,36 +277,40 @@
               }
             );
       }
-      /////
-      function GetElements() {
-          console.log("loading entries list")          
-          $.get('http://127.0.0.1:8081/catalog?'+critname+"="+critval, {}, 
-            (data, status) => {
-              console.log( "data: " + JSON.stringify(data) + " / status: " +  status);
-              if( status == "success") {
-                var content = ""
-                return data
-              }
-            }
-          );
-          return {};
-      }
-      /////
-       $('#button-submit-sample').on('click', function(e) {
-            SubmitSample();
-            return false;
-       });
 
-       $('#button-search-catalog').on('click', function(e) {
-            SearchCatalog();
-            return false;            
-       });
+////////////////////
+
+  $('#button-refresh-browser').on('click', function(e) {
+    e.preventDefault();
+    RefreshFileCatalog();
+    return false;
+  });
+
+  $('#button-submit-sample').on('click', function(e) {
+    e.preventDefault();
+    SubmitSample();
+    return false;
+  });
+
+  $('#button-search-catalog').on('click', function(e) {
+    e.preventDefault();
+    SearchCatalog();
+    return false;            
+  });
  
-       $('#button-download-sample').on('click', function(e) {            
-            ExportSample();
-            return false;
-       });
+  $('#button-download-sample').on('click', function(e) {        
+    e.preventDefault();    
+    ExportSample();
+    return false;
+  });
+
+
+  $('body').on('click', 'a.sample-link', function() {
+    ref = $(this).attr("ref")
+    showSampleByRef(ref)         
+  });
  
+ RefreshFileCatalog();
 </script>
 
 </body>
