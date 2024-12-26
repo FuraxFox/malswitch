@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/FuraxFox/malswitch/internal/analysis"
 	"github.com/FuraxFox/malswitch/internal/filehelpers"
 	"github.com/FuraxFox/malswitch/internal/manifest"
 	"github.com/FuraxFox/malswitch/internal/submissions"
@@ -85,7 +86,12 @@ func (cat *CatalogEntry) Unlock(catDir string) error {
 func (cat *CatalogEntry) Analyze(catDir string) error {
 	fileToAnalyze := cat.SamplePath(catDir)
 	log.Debug(">> analyzing catalog entry<" + cat.name + "> :" + fileToAnalyze)
-	//TODO some additionnal analysis
+	//TODO some aditionnal analysis
+	// TODO create a list of analyzers to run sequentially
+	err := analysis.AnalyseMimeType(catDir, cat.manifest)
+	if err != nil {
+		log.Warn("Analysis failed ", err)
+	}
 	return nil
 }
 
