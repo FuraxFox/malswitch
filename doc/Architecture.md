@@ -108,8 +108,8 @@ None
 ### Files
 
 * configuration `$CONFIGDIR/malwswitch/subanalyzer.ini`
-* clé de signature `$CONFIGDIR/malwswitch/malswitch-id.ed25519` 
-* base de donnée de catalogue `$WORKDIR/databases/catalog.db`
+* signature key `$CONFIGDIR/malwswitch/malswitch-id.ed25519` 
+* catalog database `$WORKDIR/databases/catalog.db`
 
 
 ### Exchanger
@@ -125,8 +125,33 @@ Allows share on a P2P network selected samples for selected identities.
 
 * configuration `$CONFIGDIR/malwswitch/exchanger.ini`
 * clé de signature `$CONFIGDIR/malwswitch/malswitch-id.ed25519` 
-* base de donnée de communauté `$WORKDIR/databases/community.db`
-* base de donnée de catalogue `$WORKDIR/databases/catalog.db`
+* community database `$WORKDIR/databases/community.db`
+* catalog database  `$WORKDIR/databases/catalog.db`
 
 
+
+# Assocation between samples
+
+An association bewteen samples defines any link between an unlimited number of samples.
+Links have history and status. 
+To keep that history links are never removed but "deprecated".
+
+Links status are:
+- `active` link is up to date
+- `reviewed` link needs confirmation
+- `deprecated` link is to be considered as obsolete
+
+
+An  association is a vector of:
+- `association_date` 
+- `association_type`
+- `association_entries` 
+- `association_description`
+
+Possible association types are:
+- `shared TTP`
+- `shared campaign`
+- `shared incident`
+- `variants`
+- `known_malware_versions`
 

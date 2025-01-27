@@ -16,6 +16,8 @@ There are 3 modes of sharing :
 * `file`      - share the hashes and the actual file (Manifest and binary)
 * `full`      - share the hashes, the file, and the complete history and analysis (Manifest, binary, History)
 
+A share is a vector of 5 informations : a community, a TLP, a PAP, a mode of sharing, a start date.
+For a givent community, the lastest start date defines the current state of sharing.
 
 ## Data organisation
 
@@ -25,15 +27,15 @@ There are 3 modes of sharing :
          \
           \---------< community-id1, pub-key1, priv-key1, description1 >
            \                            \
-            \                        < catalog-entry-id1, tlp, sharing-mode, hashes >
-             \                       < catalog-entry-id3, tlp, sharing-mode, hashes >
-              \                      < catalog-entry-id4, tlp, sharing-mode, hashes >
+            \                        < catalog-entry-id1, tlp, pap, sharing-mode, start_date, hashes >
+             \                       < catalog-entry-id3, tlp, pap, sharing-mode, start_date, hashes >
+              \                      < catalog-entry-id4, tlp, pap, sharing-mode, start_date, hashes >
                \
                 \----< community-id2, pub-key2, priv-key2, description2 >
                  \                       \
-                  \                    < catalog-entry-id1, tlp, sharing-mode, hashes >
-                   \                   < catalog-entry-id2, tlp, sharing-mode, hashes >
-                    \                  < catalog-entry-id4, tlp, sharing-mode, hashes >
+                  \                    < catalog-entry-id1, tlp, pap, sharing-mode, start_date, hashes >
+                   \                   < catalog-entry-id2, tlp, pap, sharing-mode, start_date, hashes >
+                    \                  < catalog-entry-id4, tlp, pap, sharing-mode, start_date, hashes >
                      \---- ...
 
 ```
