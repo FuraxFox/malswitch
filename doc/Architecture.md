@@ -1,23 +1,28 @@
 # Architecture
 
 ```
-       <user>                        <user>                                           <user>                                       <user>
-          |                            ^                                                ^                                             ^
-          |                            |                                                |                                             |
-    (submit malware)             (check status)                                         V                                             |
-          |                            |                                        [catalog browser]                                     |
-[ submission gateway ]<----------------+                                                |                                             |
-          |                                                          (read and update catalog, and collection)  (select samples to share and sharing circles)
-          V                                                                             |                                             |
-  <submission queue>                                                                    |                                             |
-          |                                                                             |                                             |
-          +---(process bin)--->[submission analyzer]--(reference)--<storage catalog>----+                                             |
-                                       |                                                |                                             V
-                         (package binary and meta infos)                                +-----( update collection and catalog)---[Exchanger]---<P2P Network>
-                                       |                                                |                                             ^
-                             <collection storage>---------------------------------------+                                             |
-                                                                                                                                      V
-                                                                                                                              <community database>
+       <user>                        <user>                                           <user>                                  <user>
+          |                            ^                                                ^                                        ^
+          |                            |                                                |                                        |
+    (submit malware)             (check status)                                         V                                        |
+          |                            |                                        [catalog browser]                                |
+[ submission gateway ]<----------------+                                                |                                        |
+          |                                                                  (read and update catalog,)                (select samples to share) 
+          |                                                                  ( and collection         )                  (and sharing circles)
+          V                                                                             |                                        |
+  <submission queue>                                                                    |                                        |
+          |                                                                             |                                        |
+          +---(process bin)--->[submission analyzer]--(reference)--<storage catalog>----+                                        |
+                                       |                                                |                                        V
+                         (package binary and meta infos)                                +---( update collection)-[Exchanger]-<P2P Network>
+                                       |                                                |   (  and catalog     )                 ^
+                             <collection storage>---------------------------------------+                                        |
+                                       ^                                                |                                        V
+                                       |                                                |                                <community database>
+                                       v                                                |
+                                       +----------------[analyze scheduler]<------------+
+                                      
+
 ```  
 
 -----
@@ -77,7 +82,7 @@ Upon reception:
 
 #### Files
 
-* configuration `$CONFIGDIR/malwswitch/subgateway.ini`
+* configuration    `$CONFIGDIR/malwswitch/subgateway.ini`
 * clé de signature `$CONFIGDIR/malwswitch/malswitch-id.ed25519` 
 
 ---
@@ -107,7 +112,7 @@ None
 
 ### Files
 
-* configuration `$CONFIGDIR/malwswitch/subanalyzer.ini`
+* configuration `$CONFIGDIR/malwswitch/analyzers.ini`
 * signature key `$CONFIGDIR/malwswitch/malswitch-id.ed25519` 
 * catalog database `$WORKDIR/databases/catalog.db`
 

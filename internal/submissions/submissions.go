@@ -38,6 +38,7 @@ type Submission struct {
 	TempPath string `json:"-" yaml:"-"`
 }
 
+// Create a new submission object, create its temporary directory
 func Create(sampleFilename string, sampleTLP string, queueDir string, tempDir string) (*Submission, error) {
 	s := Submission{
 		Filename: sampleFilename,
@@ -55,6 +56,7 @@ func Create(sampleFilename string, sampleTLP string, queueDir string, tempDir st
 	return &s, nil
 }
 
+// Compute the hash of a file using the provided hash algorithm
 func computeHash(f *os.File, algo hash.Hash) (string, error) {
 	// sending bytes to hasher
 	_, err := io.Copy(algo, f)
@@ -116,24 +118,29 @@ func (s *Submission) Hash(tempRoot string) error {
 	return nil
 }
 
+// Get the path to the submission temporary directory and file
 func (s *Submission) TempDirPath(tempRoot string) string {
 	return filepath.Join(tempRoot, s.UUID)
 }
 
+// Get the path to the submission temporary directory and file
 func (s *Submission) TempSamplePath(tempRoot string) string {
 	return filepath.Join(tempRoot, s.UUID, s.UUID+".bin")
 }
 
+// Get the path to the submission queue directory and file
 func (s *Submission) QueuedPath(queueRoot string) string {
 	queuePath := filepath.Join(queueRoot, s.UUID)
 	return queuePath
 }
 
+// Get the path to the submission queue directory and file
 func (s *Submission) QueuedSamplePath(queueRoot string) string {
 	queuePath := filepath.Join(queueRoot, s.UUID, s.SHA256+".bin")
 	return queuePath
 }
 
+// Receive the uploaded file and store it in the temporary directory
 func (s *Submission) Receive(file io.Reader /*file multipart.File*/, tempRoot string) error {
 
 	destFPath := s.TempSamplePath(tempRoot) // TODO pass a context to the server
@@ -165,6 +172,43 @@ func (s *Submission) Receive(file io.Reader /*file multipart.File*/, tempRoot st
 	return nil
 }
 
+func (s *Submission) Unzip(tempRoot string, password string) error {
+
+	log.Debugf("Unzipping submission %s in %s", s.UUID, s.TempDirPath(tempRoot))
+
+	// unzip temporary file to the same directory
+	err := filehelpers.DecompressZip(
+		s.TempSamplePath(tempRoot),
+		s.TempDirPath(tempRoot),
+		password)
+	if err != nil {
+		log.Error("failed to unzip submission:", err)
+		return err
+	}
+	// remove the original zip file
+	err = os.Remove(s.TempSamplePath(tempRoot))
+	if err != nil {
+		log.Error("failed to remove original zip file:", err)
+		return err
+	}
+	// check that there is exactly one file in the directory
+	files, err := os.ReadDir(s.TempDirPath(tempRoot))
+	if err != nil {
+		log.Error("failed to read temporary submission directory:", err)
+		return err
+	}
+	if len(files) != 1 {
+		log.Error("unzipped submission does not contain exactly one file")
+		return fmt.Errorf("unzipped submission does not contain exactly one file")
+	}
+
+	// update submission filename
+	s.Filename = files[0].Name()
+
+	return nil
+}
+
+// Remove the submission from the queue
 func (s *Submission) Dequeue(queueRoot string) error {
 	err := s.Lock(queueRoot)
 	if err != nil {

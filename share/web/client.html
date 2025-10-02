@@ -30,25 +30,54 @@
 <main role="main" class="container">
   <div class="bg-body-tertiary p-5 rounded">
 
-    <div id="submissions" class='parameters'>       
+<div id="submissions" class='parameters'>
+    <formgroup>
         <h2>Submit a sample</h2>
-        <form enctype="multipart/form-data" id="submit-sample-form"> 
-          <div  class="form-group" >
-              <label for="sample">Sample</label>
-              <input type="file" id="sample" name="sample" class="form-control-file"  >
-          </div><div class="form-group">
-              <label for="tlp">TLP</label>
-              <select id="tlp" name="tlp" class="form-control">
-                <option value="clear">CLEAR</option>
-                <option value="green">GREEN</option>
-                <option value="amber">AMBER</option>
-                <option value="amber+strict">AMBER+STRICT</option>
-                <option value="red">RED</option>
-              </select> 
-          </div>
-          <button id="button-submit-sample" class="btn btn-primary" id='button-submit-sample'>Upload</button>        
-          <progress value="0"></progress>
-       </form>
+        <form enctype="multipart/form-data" id="submit-sample-form">
+            <div class="form-group mb-3">
+                <label for="sample" class="form-label">Sample File</label>
+                <input type="file" id="sample" name="sample" class="form-control-file">
+            </div>
+
+            <div class="form-group mb-3 p-3 border rounded" id="unzip-options-group">
+                <div class="form-check">
+                    <input 
+                        type="checkbox" 
+                        id="unzip" 
+                        name="unzip" 
+                        class="form-check-input"
+                        onchange="togglePasswordInput()" >
+                    <label for="unzip" class="form-check-label">Process as Zip Archive</label>
+                    <small id="unzipHelp" class="form-text text-muted d-block">If checked, and if the sample is a zip archive, all files will be extracted and submitted.</small>
+                </div>
+                
+                <hr class="my-2">
+                
+                <label for="unzip-password" class="form-label mt-2">Archive Password</label>
+                <input 
+                    type="password" 
+                    id="unzip-password" 
+                    name="unzip-password" 
+                    class="form-control" 
+                    placeholder="Password (if any)"
+                    disabled                 aria-disabled="true"     >
+                <small class="form-text text-danger" id="password-feedback"></small>
+            </div>
+            <div class="form-group mb-3">
+                <label for="tlp" class="form-label">TLP (Traffic Light Protocol)</label>
+                <select id="tlp" name="tlp" class="form-control">
+                    <option value="clear">CLEAR</option>
+                    <option value="green">GREEN</option>
+                    <option value="amber">AMBER</option>
+                    <option value="amber+strict">AMBER+STRICT</option>
+                    <option value="red">RED</option>
+                </select>
+            </div>
+            <button id="button-submit-sample" class="btn btn-primary">Upload</button>
+            <progress value="0"></progress>
+        </form>
+    </formgroup>
+    </div>
        <div id="submission-result" class="result-area"></div>
        <button  class="btn btn-primary" id="button-download-sample">Download</button>
        <div id="downloader">
@@ -57,6 +86,7 @@
       </div>      
   
     </div>
+
     <hr>    
     <div id="browser" class='parameters'></div>
       <h2>Samples catalog</h2>
@@ -66,24 +96,30 @@
         <button  class="btn btn-primary" id="button-refresh-browser">Force refresh</button>
         
     </div>
+
     <hr>
     <div id="catalog" class='parameters'>
         <h2>Advanced Search</h2>
         <div class="form-group">
             <label for="search-uuid">Submission ID</label>          
-            <input id="search-uuid"         type="text" name="uuid"   value="" class="form-control" placeholder="Submission ID"> 
+            <input id="search-uuid"         
+              type="text" name="uuid"   value="" class="form-control" placeholder="Submission ID"> 
         </div><div class="form-group">
             <label for="search-md5-hash">MD5</label>       
-            <input id="search-md5-hash"     type="text" name="md5"    value="" class="form-control" placeholder="MD5 hash"> 
+            <input id="search-md5-hash"     
+              type="text" name="md5"    value="" class="form-control" placeholder="MD5 hash"> 
           </div><div class="form-group">
             <label for="search-sha1-hash">SHA1</label>     
-            <input id="search-sha1-hash"    type="text" name="sha1"   value="" class="form-control" placeholder="SHA1 hash">  
+            <input id="search-sha1-hash"    
+              type="text" name="sha1"   value="" class="form-control" placeholder="SHA1 hash">  
           </div><div class="form-group">
             <label for="search-sha256-hash">SHA256</label> 
-            <input id="search-sha256-hash"  type="text" name="sha256" value="" class="form-control" placeholder="SHA256 hash"> 
+            <input id="search-sha256-hash"  
+              type="text" name="sha256" value="" class="form-control" placeholder="SHA256 hash"> 
           </div><div class="form-group">
             <label for="search-sha512-hash">SHA512</label> 
-            <input id="search-sha512-hash"  type="text" name="sha512" value="" class="form-control" placeholder="SHA512 hash">
+            <input id="search-sha512-hash"  
+              type="text" name="sha512" value="" class="form-control" placeholder="SHA512 hash">
           </div>
           <button id="button-search-catalog" class="btn btn-primary"  id='button-search-catalog'>Lookup</button>
         <div id="search-result" class="result-area"></div>
@@ -93,6 +129,7 @@
   <hr>
 </div>
 </main>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script> 
 <script>
@@ -128,6 +165,27 @@
 
 
 /////
+
+// Ensures the unzip-password field is only enabled when the unzip checkbox is checked.
+function togglePasswordInput() {
+    // Get references to the elements
+    const unzipCheckbox = document.getElementById('unzip');
+    const passwordInput = document.getElementById('unzip-password');
+
+    if (unzipCheckbox.checked) {
+        // If the checkbox is checked, enable the password field
+        passwordInput.disabled = false;
+        passwordInput.setAttribute('aria-disabled', 'false');
+        passwordInput.focus(); // Optional: put focus on the password field
+    } else {
+        // If the checkbox is NOT checked, disable the password field
+        passwordInput.disabled = true;
+        passwordInput.setAttribute('aria-disabled', 'true');
+        // Optional: clear the password field when disabled
+        passwordInput.value = '';
+    }
+}
+
   // request an export version of the posture and download it
   function ExportSample() {        
         // from raw data to file download
@@ -280,6 +338,8 @@ function showSampleByRef(ref){
 
 ////////////////////
 
+function InitializePage() {
+    
   $('#button-refresh-browser').on('click', function(e) {
     e.preventDefault();
     RefreshFileCatalog();
@@ -310,7 +370,16 @@ function showSampleByRef(ref){
     showSampleByRef(ref)         
   });
  
- RefreshFileCatalog();
+  togglePasswordInput();
+
+  RefreshFileCatalog();
+
+  console.log("Page initialized");
+}
+
+//// 
+document.addEventListener('DOMContentLoaded', InitializePage); 
+
 </script>
 
 </body>

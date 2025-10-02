@@ -1,6 +1,7 @@
-TARGETS := github.com/FuraxFox/malswitch/cmd/subgateway \
+TARGETS := \
+    github.com/FuraxFox/malswitch/cmd/subgateway  \
 	github.com/FuraxFox/malswitch/cmd/subanalyzer \
-	github.com/FuraxFox/malswitch/cmd/exchanger \
+	github.com/FuraxFox/malswitch/cmd/exchanger   \
 	github.com/FuraxFox/malswitch/cmd/catbrowser
 
 .PHONY: all clean test lint

@@ -49,6 +49,13 @@ func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request, ctx *Submi
 
 	// Get the TLP variable
 	tlp := r.FormValue("tlp")
+	unzipFlag := r.FormValue("unzip")
+	unzipPassword := r.FormValue("unzip-password")
+
+	if tlp == "" {
+		log.Debugf("no TLP provided, defaulting to 'white'")
+		tlp = "white"
+	}
 
 	// initialize submission object
 	sub, err := submissions.Create(filename, tlp, ctx.SubmissionsDir, ctx.TempDir)
@@ -63,6 +70,21 @@ func SubmissionRequestHandler(w http.ResponseWriter, r *http.Request, ctx *Submi
 		log.Error("error receiveing file:", err)
 		http.Error(w, "Error receiving file", http.StatusInternalServerError)
 		return
+	}
+
+	// handle unzip if requested
+	if unzipFlag == "true" {
+		log.Debugf(
+			"unzip requested for submission %s (dir:%s password:%s)",
+			sub.UUID, ctx.TempDir, unzipPassword)
+		err = sub.Unzip(ctx.TempDir, unzipPassword)
+		if err != nil {
+			log.Error("error unzipping file:", err)
+			http.Error(w, "Error unzipping file", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		log.Debugf("no unzip requested for submission %s", sub.UUID)
 	}
 
 	// compute basic hashes
