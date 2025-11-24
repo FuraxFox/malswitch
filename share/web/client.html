@@ -16,6 +16,18 @@
             min-width: 128ex;
             padding: 0.5ex;
         }
+        /* Custom style for tags */
+        .tag-badge {
+            margin-right: 5px;
+            padding: 0.35em 0.7em;
+            font-size: 0.9em;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .tag-badge .btn-close {
+            font-size: 0.6em;
+            margin-left: 5px;
+        }
       </style>      
   </head>
 <body>   
@@ -30,23 +42,24 @@
 <main role="main" class="container">
   <div class="bg-body-tertiary p-5 rounded">
 
-<div id="submissions" class='parameters'>
-    <formgroup>
-        <h2>Submit a sample</h2>
-        <form enctype="multipart/form-data" id="submit-sample-form">
-            <div class="form-group mb-3">
-                <label for="sample" class="form-label">Sample File</label>
-                <input type="file" id="sample" name="sample" class="form-control-file">
-            </div>
-
-            <div class="form-group mb-3 p-3 border rounded" id="unzip-options-group">
+    <div id="submissions" class='parameters'>       
+      <formgroup>
+        <h2>Submit a sample</h2>        
+        <form enctype="multipart/form-data" id="submit-sample-form"> 
+          <div  class="form-group mb-3" >
+              <label for="sample" class="form-label">Sample File</label>
+              <input type="file" id="sample" name="sample" class="form-control-file"  >
+          </div>
+          
+          <div class="form-group mb-3 p-3 border rounded" id="unzip-options-group">
                 <div class="form-check">
                     <input 
                         type="checkbox" 
                         id="unzip" 
                         name="unzip" 
                         class="form-check-input"
-                        onchange="togglePasswordInput()" >
+                        onchange="togglePasswordInput()"
+                    >
                     <label for="unzip" class="form-check-label">Process as Zip Archive</label>
                     <small id="unzipHelp" class="form-text text-muted d-block">If checked, and if the sample is a zip archive, all files will be extracted and submitted.</small>
                 </div>
@@ -60,24 +73,36 @@
                     name="unzip-password" 
                     class="form-control" 
                     placeholder="Password (if any)"
-                    disabled                 aria-disabled="true"     >
+                    disabled                 
+                    aria-disabled="true"     
+                >
                 <small class="form-text text-danger" id="password-feedback"></small>
             </div>
             <div class="form-group mb-3">
-                <label for="tlp" class="form-label">TLP (Traffic Light Protocol)</label>
-                <select id="tlp" name="tlp" class="form-control">
-                    <option value="clear">CLEAR</option>
-                    <option value="green">GREEN</option>
-                    <option value="amber">AMBER</option>
-                    <option value="amber+strict">AMBER+STRICT</option>
-                    <option value="red">RED</option>
-                </select>
-            </div>
-            <button id="button-submit-sample" class="btn btn-primary">Upload</button>
-            <progress value="0"></progress>
-        </form>
-    </formgroup>
-    </div>
+              <label for="new-tag" class="form-label">Tags</label>
+              <div id="tags-container" class="mb-2">
+                  </div>
+              <div class="input-group">
+                  <input type="text" id="new-tag" class="form-control" placeholder="Add a new tag (e.g., win32, phishing)">
+                  <button class="btn btn-outline-secondary" type="button" id="add-tag-button" onclick="addTag()">Add Tag</button>
+              </div>
+              <input type="hidden" id="submission-tags" name="tags" value=""> 
+          </div>
+          <div class="form-group mb-3">
+              <label for="tlp" class="form-label">TLP</label>
+              <select id="tlp" name="tlp" class="form-control">
+                <option value="clear">CLEAR</option>
+                <option value="green">GREEN</option>
+                <option value="amber">AMBER</option>
+                <option value="amber+strict">AMBER+STRICT</option>
+                <option value="red">RED</option>
+              </select>               
+          </div>
+          <button id="button-submit-sample" class="btn btn-primary" id='button-submit-sample'>Upload</button>        
+          <progress value="0"></progress>
+       </form>
+      </formgroup>
+
        <div id="submission-result" class="result-area"></div>
        <button  class="btn btn-primary" id="button-download-sample">Download</button>
        <div id="downloader">
@@ -86,40 +111,31 @@
       </div>      
   
     </div>
-
     <hr>    
     <div id="browser" class='parameters'></div>
       <h2>Samples catalog</h2>
-        <!-- -->
         <ul class="list-group" id="sample-browser-list"></ul>
-        <!-- -->
         <button  class="btn btn-primary" id="button-refresh-browser">Force refresh</button>
         
     </div>
-
     <hr>
     <div id="catalog" class='parameters'>
         <h2>Advanced Search</h2>
         <div class="form-group">
             <label for="search-uuid">Submission ID</label>          
-            <input id="search-uuid"         
-              type="text" name="uuid"   value="" class="form-control" placeholder="Submission ID"> 
+            <input id="search-uuid"         type="text" name="uuid"   value="" class="form-control" placeholder="Submission ID"> 
         </div><div class="form-group">
             <label for="search-md5-hash">MD5</label>       
-            <input id="search-md5-hash"     
-              type="text" name="md5"    value="" class="form-control" placeholder="MD5 hash"> 
+            <input id="search-md5-hash"     type="text" name="md5"    value="" class="form-control" placeholder="MD5 hash"> 
           </div><div class="form-group">
             <label for="search-sha1-hash">SHA1</label>     
-            <input id="search-sha1-hash"    
-              type="text" name="sha1"   value="" class="form-control" placeholder="SHA1 hash">  
+            <input id="search-sha1-hash"    type="text" name="sha1"   value="" class="form-control" placeholder="SHA1 hash">  
           </div><div class="form-group">
             <label for="search-sha256-hash">SHA256</label> 
-            <input id="search-sha256-hash"  
-              type="text" name="sha256" value="" class="form-control" placeholder="SHA256 hash"> 
+            <input id="search-sha256-hash"  type="text" name="sha256" value="" class="form-control" placeholder="SHA256 hash"> 
           </div><div class="form-group">
             <label for="search-sha512-hash">SHA512</label> 
-            <input id="search-sha512-hash"  
-              type="text" name="sha512" value="" class="form-control" placeholder="SHA512 hash">
+            <input id="search-sha512-hash"  type="text" name="sha512" value="" class="form-control" placeholder="SHA512 hash">
           </div>
           <button id="button-search-catalog" class="btn btn-primary"  id='button-search-catalog'>Lookup</button>
         <div id="search-result" class="result-area"></div>
@@ -133,6 +149,146 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script> 
 <script>
+
+// Global array to hold the current tags
+let currentTags = [];
+
+/**
+ * Fetches the list of available tags from the backend and stores them globally.
+ */
+function fetchAvailableTags() {
+    $.get('http://127.0.0.1/tags', {}, 
+    (data, status) => {
+        if( status === "success" && Array.isArray(data)) {
+            // Normalize tags (trim and lowercase) for consistent matching
+            availableTags = data.map(tag => tag.trim().toLowerCase());
+            console.log(`Fetched ${availableTags.length} available tags.`);
+            
+            // Render the datalist options after fetching
+            renderTagDatalist();
+        } else {
+            console.warn("Failed to fetch available tags or response was not an array.");
+            availableTags = [];
+        }
+    }).fail(function(jqXHR, textStatus, errorThrown) {
+        console.error("Error fetching tags:", textStatus, errorThrown);
+    });
+}
+
+/**
+ * Renders the <datalist> element containing available tag suggestions.
+ * This is used by the input field to show suggestions.
+ */
+function renderTagDatalist() {
+    const datalist = $('#tag-suggestions');
+    datalist.empty();
+    
+    availableTags.forEach(tag => {
+        const option = `<option value="${tag}">`;
+        datalist.append(option);
+    });
+}
+
+// =========================================================
+// CORE TAG MANAGEMENT FUNCTIONS
+// =========================================================
+
+/**
+ * Renders the tags from the currentTags array into the UI
+ * and updates the hidden input field for submission.
+ */
+function renderTags() {
+    const container = $('#tags-container');
+    container.empty();
+
+    // 1. Render Badges
+    currentTags.forEach(tag => {
+        const displayTag = tag.trim();
+        if (displayTag === '') return;
+
+        // Determine if the tag is from the official list (optional styling feedback)
+        const isListed = availableTags.includes(displayTag);
+        const badgeClass = isListed ? 'bg-info text-dark' : 'bg-warning text-dark';
+
+        const badge = $(`
+            <span class="badge ${badgeClass} tag-badge" data-tag="${displayTag}">
+                ${displayTag}
+                <button type="button" class="btn-close" aria-label="Remove tag" onclick="removeTag('${displayTag}')"></button>
+            </span>
+        `);
+        container.append(badge);
+    });
+
+    // 2. Update Hidden Submission Field
+    $('#submission-tags').val(currentTags.join(','));
+}
+
+/**
+ * Adds a tag from the input field to the list.
+ */
+function addTag() {
+    const tagInput = $('#new-tag');
+    let newTag = tagInput.val().trim().toLowerCase(); // Normalize tag
+
+    if (newTag === '') {
+        return; 
+    }
+
+    // Check for duplicates
+    if (currentTags.includes(newTag)) {
+        tagInput.val('');
+        return; 
+    }
+
+    // Add tag to array and refresh UI
+    currentTags.push(newTag);
+    renderTags();
+    
+    // Clear the input field
+    tagInput.val('');
+}
+
+/**
+ * Removes a specified tag from the list.
+ */
+function removeTag(tagToRemove) {
+    currentTags = currentTags.filter(tag => tag !== tagToRemove);
+    renderTags();
+}
+
+// Attach the addTag function to the 'Enter' key press on the input field
+$('#new-tag').on('keypress', function(e) {
+    if (e.which === 13) { // 13 is the key code for Enter
+        e.preventDefault(); // Prevent form submission
+        addTag();
+    }
+});
+
+// =========================================================
+// EXISTING JAVASCRIPT LOGIC
+// =========================================================
+
+
+/**
+ * Ensures the unzip-password field is only enabled when the unzip checkbox is checked.
+ */
+function togglePasswordInput() {
+    // Get references to the elements
+    const unzipCheckbox = document.getElementById('unzip');
+    const passwordInput = document.getElementById('unzip-password');
+
+    if (unzipCheckbox.checked) {
+        passwordInput.disabled = false;
+        passwordInput.setAttribute('aria-disabled', 'false');
+        passwordInput.focus(); 
+    } else {
+        passwordInput.disabled = true;
+        passwordInput.setAttribute('aria-disabled', 'true');
+        passwordInput.value = ''; // Clear password when disabled
+    }
+}
+
+
 /////
   function RefreshFileCatalog() {
     $.get('http://127.0.0.1:8081/catalog', {}, 
@@ -165,27 +321,6 @@
 
 
 /////
-
-// Ensures the unzip-password field is only enabled when the unzip checkbox is checked.
-function togglePasswordInput() {
-    // Get references to the elements
-    const unzipCheckbox = document.getElementById('unzip');
-    const passwordInput = document.getElementById('unzip-password');
-
-    if (unzipCheckbox.checked) {
-        // If the checkbox is checked, enable the password field
-        passwordInput.disabled = false;
-        passwordInput.setAttribute('aria-disabled', 'false');
-        passwordInput.focus(); // Optional: put focus on the password field
-    } else {
-        // If the checkbox is NOT checked, disable the password field
-        passwordInput.disabled = true;
-        passwordInput.setAttribute('aria-disabled', 'true');
-        // Optional: clear the password field when disabled
-        passwordInput.value = '';
-    }
-}
-
   // request an export version of the posture and download it
   function ExportSample() {        
         // from raw data to file download
@@ -253,11 +388,24 @@ function showSampleByRef(ref){
   function SubmitSample(){
 
         var tlp = $('#tlp').val()
+        var tags = $('#submission-tags').val() // Get the comma-separated string of tags
 
         var fd = new FormData(); 
         var files = $('#sample')[0].files[0]; 
+        
         fd.append('sample', files); 
         fd.append('tlp', tlp)
+        fd.append('tags', tags) // Append the tags list
+        
+        // Add unzip and password if checked
+        if ($('#unzip').is(':checked')) {
+            fd.append('unzip', 'true');
+            const password = $('#unzip-password').val();
+            if (password) {
+                fd.append('unzip-password', password);
+            }
+        }
+
         
         $.ajax({
 
@@ -268,10 +416,10 @@ function showSampleByRef(ref){
           data: fd,
           
           // Tell jQuery not to process data or worry about content-type
-          // You *must* include these options!
           cache: false,
           contentType: false,
           processData: false,
+          
           // success handler
           success: function(response){ 
                 if(response != 0){          
@@ -279,6 +427,9 @@ function showSampleByRef(ref){
                   showSample(response)                 
                   alert('sample accepted as '+uuid); 
                   RefreshFileCatalog();
+                  // Reset tags after successful submission
+                  currentTags = [];
+                  renderTags();
                 } else{ 
                   alert('sample not accepted'); 
                 } 
@@ -338,8 +489,6 @@ function showSampleByRef(ref){
 
 ////////////////////
 
-function InitializePage() {
-    
   $('#button-refresh-browser').on('click', function(e) {
     e.preventDefault();
     RefreshFileCatalog();
@@ -370,16 +519,10 @@ function InitializePage() {
     showSampleByRef(ref)         
   });
  
-  togglePasswordInput();
-
+  // Initial calls
   RefreshFileCatalog();
-
-  console.log("Page initialized");
-}
-
-//// 
-document.addEventListener('DOMContentLoaded', InitializePage); 
-
+  // Ensure the password field is disabled on initial load
+  document.addEventListener('DOMContentLoaded', togglePasswordInput); 
 </script>
 
 </body>
