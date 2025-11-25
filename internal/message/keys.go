@@ -12,6 +12,8 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
+// --- Helper Functions (Now Public) ---
+
 // GenerateKeys generates a pair of Ed25519 public/private keys.
 func GenerateKeys() (ed25519.PublicKey, ed25519.PrivateKey, error) {
 	return ed25519.GenerateKey(rand.Reader)
@@ -34,8 +36,8 @@ func DeriveX25519PublicKey(edPriv ed25519.PrivateKey) ([]byte, error) {
 	return x25519Pub, nil
 }
 
-// keyDerivationFunction uses HKDF to derive a Key Encryption Key (KEK).
-func keyDerivationFunction(sharedSecret []byte, keyLen int) ([]byte, error) {
+// KeyDerivationFunction uses HKDF to derive a Key Encryption Key (KEK).
+func KeyDerivationFunction(sharedSecret []byte, keyLen int) ([]byte, error) {
 	kekInfo := []byte("HPKE_KEK_Wrap")
 	h := hkdf.New(sha256.New, sharedSecret, nil, kekInfo)
 	key := make([]byte, keyLen)
@@ -45,9 +47,9 @@ func keyDerivationFunction(sharedSecret []byte, keyLen int) ([]byte, error) {
 	return key, nil
 }
 
-// keyWrap encrypts the symmetric key (chachaKey) using the DH shared secret's HKDF output (KEK).
-func keyWrap(sharedSecret, chachaKey []byte) ([]byte, error) {
-	kek, err := keyDerivationFunction(sharedSecret, 32)
+// KeyWrap encrypts the symmetric key (chachaKey) using the DH shared secret's HKDF output (KEK).
+func KeyWrap(sharedSecret, chachaKey []byte) ([]byte, error) {
+	kek, err := KeyDerivationFunction(sharedSecret, 32)
 	if err != nil {
 		return nil, err
 	}
@@ -62,9 +64,9 @@ func keyWrap(sharedSecret, chachaKey []byte) ([]byte, error) {
 	return wrappedKey, nil
 }
 
-// keyUnwrap decrypts the symmetric key (chachaKey) using the DH shared secret's HKDF output (KEK).
-func keyUnwrap(sharedSecret, wrappedKey []byte) ([]byte, error) {
-	kek, err := keyDerivationFunction(sharedSecret, 32)
+// KeyUnwrap decrypts the symmetric key (chachaKey) using the DH shared secret's HKDF output (KEK).
+func KeyUnwrap(sharedSecret, wrappedKey []byte) ([]byte, error) {
+	kek, err := KeyDerivationFunction(sharedSecret, 32)
 	if err != nil {
 		return nil, err
 	}

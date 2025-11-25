@@ -1,185 +1,73 @@
 package message
 
-/*
-Writing a golang program, can you write two functions defined below ?
-
-The first one receives a cleartext buffer, a signature key and and a list of recipients (defined by a pairs of keys: a ed25519 key for encryption, and an ed25519 key for signature).
-
-
-Recipients are defined as:
-type MessageContact struct {
-    EncryptionKey []byte // public key to write to the contact
-    SignatureKey  []byte // public key to verify signature
-}
-
-
-
-It returns an encrypted message defined as :
-type EncryptedMessage struct {
-    Version       int    // always 1
-    Data          []byte // encrypted data
-    Signature     []byte // signature of the encrypted data
-    Signature
-    WrappedKeys [][]byte // list of wrapped keys
-    Sender      MessageContact
-}
-The function has to :
-- generate a key for chacha20-poly1305
-- encrypt the clear text with chacha20-poly1305 algorithm
-- sign the encrypted text with ed25519 algorithm
-- wrap the symetric key with each recipient key with  X25519 algorithm
-
-function signature is:
-func EncryptMessage( clearTest []buffer, signatureKey []byte, recipients []MessageContact) ( EncryptedMessage, error)
-
-The second function does the reverse :
-It is defined as
-func DecryptMessage( msg EncryptedMessage, decryptionKey []byte, correspondents []MessageContact) ( []byte, error)
-
-The function:
-- it uses the Sender SignatureKey to check the signature of the encrypted data, it checking the signature fails it returns an error
-- then it tries to decrypt the messages wrapped keys until it finds one that decrypt or return an error
-- with the unwrapped key it decrypts the message and returns it
-
-
-*/
-
 import (
 	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/sha256" // New: Required for HKDF-SHA256
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
-	// Added for unique message ID in demo
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
-	"golang.org/x/crypto/hkdf" // New: Required for HPKE-compliant key derivation
 )
 
 // --- Struct Definitions ---
 
 // MessageContact holds the public keys for a party.
-// EncryptionKey is the X25519 public key for Diffie-Hellman key agreement.
-// SignatureKey is the Ed25519 public key for signature verification.
 type MessageContact struct {
-	EncryptionKey []byte // X25519 public key for DH key agreement
-	SignatureKey  []byte // Ed25519 public key for signature verification
+	EncryptionKey []byte // X25519 public key (binary)
+	SignatureKey  []byte // Ed25519 public key (binary)
 }
 
-// EncryptedMessage holds the final message structure.
+// EncryptedMessage holds the final message structure, with binary fields encoded in Base64 for transport.
 type EncryptedMessage struct {
 	Version     int      // always 1
-	Data        []byte   // encrypted data (ciphertext + Poly1305 tag)
-	Signature   []byte   // ed25519 signature of the Data field
-	WrappedKeys [][]byte // list of wrapped symmetric keys (one per recipient)
+	Data        string   // Base64 encoded ciphertext + nonce
+	Signature   string   // Base64 encoded ed25519 signature of the normalized message
+	WrappedKeys []string // List of Base64 encoded wrapped symmetric keys (one per recipient)
 	Sender      MessageContact
 }
 
-// --- Helper Functions ---
+// CreateNormalizedMessage generates a deterministic string from the message components for signing.
+// Format: version(hex 2 digits) || wrapped_keys(joined Base64) || sender_pub_keys(X25519+Ed25519 Base64) || data(Base64)
+func CreateNormalizedMessage(msg EncryptedMessage) []byte {
+	// 1. Version (hex encoded on 2 digits)
+	versionHex := fmt.Sprintf("%02x", msg.Version)
 
-// GenerateKeys generates a pair of Ed25519 public/private keys.
-func GenerateKeys() (ed25519.PublicKey, ed25519.PrivateKey, error) {
-	return ed25519.GenerateKey(rand.Reader)
-}
+	// 2. Base64 encoded wrapped keys (joined by empty string or a delimiter, using empty string for compactness)
+	wrappedKeysJoined := strings.Join(msg.WrappedKeys, "")
 
-// ed25519PrivateKeyToCurve25519 converts an Ed25519 private key to an X25519 private key.
-func Ed25519PrivateKeyToCurve25519(edPriv ed25519.PrivateKey) []byte {
-	var curvePriv [32]byte
-	copy(curvePriv[:], edPriv[:32])
-	return curvePriv[:]
-}
+	// 3. Base 64 encoded sender public keys (X25519 + Ed25519)
+	senderKeys := append(msg.Sender.EncryptionKey, msg.Sender.SignatureKey...)
+	senderKeysBase64 := base64.StdEncoding.EncodeToString(senderKeys)
 
-// deriveX25519PublicKey calculates the X25519 public key from the Ed25519 private key.
-// This is corrected to use the 2-argument slice-based signature compatible with Go 1.25.4.
-func DeriveX25519PublicKey(edPriv ed25519.PrivateKey) ([]byte, error) {
-	x25519Priv := Ed25519PrivateKeyToCurve25519(edPriv)
+	// 4. Base64 encoded encrypted text (msg.Data is already Base64)
+	dataBase64 := msg.Data
 
-	// Use the 2-argument slice-based signature: X25519(privateKey, basepoint).
-	// The function returns the calculated public key slice.
-	x25519Pub, err := curve25519.X25519(x25519Priv, curve25519.Basepoint)
-	if err != nil {
-		return nil, err
-	}
-	return x25519Pub, nil
-}
+	// Concatenate all parts
+	normalizedString := versionHex + wrappedKeysJoined + senderKeysBase64 + dataBase64
 
-// keyDerivationFunction uses HKDF (as HPKE mandates) to derive a strong, unique
-// key encryption key (KEK) from the raw Diffie-Hellman shared secret.
-func keyDerivationFunction(sharedSecret []byte, keyLen int) ([]byte, error) {
-	// Salt is nil (optional), info provides context for key separation (HPKE Base Mode).
-	kekInfo := []byte("HPKE_KEK_Wrap")
-
-	// Create a new HKDF reader using SHA256 as the hash function
-	h := hkdf.New(sha256.New, sharedSecret, nil, kekInfo)
-
-	key := make([]byte, keyLen)
-	if _, err := h.Read(key); err != nil {
-		return nil, fmt.Errorf("hkdf read failed: %w", err)
-	}
-	return key, nil
-}
-
-// keyWrap encrypts the symmetric key (chachaKey) using the DH shared secret's HKDF output (KEK).
-func keyWrap(sharedSecret, chachaKey []byte) ([]byte, error) {
-	// 1. Derive the Key Encryption Key (KEK) from the shared secret using HKDF
-	kek, err := keyDerivationFunction(sharedSecret, 32)
-	if err != nil {
-		return nil, err
-	}
-
-	// 2. Use the KEK with ChaCha20-Poly1305 for AEAD key wrapping
-	aead, err := chacha20poly1305.New(kek)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create AEAD for key wrap: %w", err)
-	}
-
-	// Use a fixed zero nonce, uniqueness is guaranteed by the unique KEK derived from DH
-	nonce := make([]byte, aead.NonceSize())
-
-	wrappedKey := aead.Seal(nil, nonce, chachaKey, nil)
-	return wrappedKey, nil
-}
-
-// keyUnwrap decrypts the symmetric key (chachaKey) using the DH shared secret's HKDF output (KEK).
-func keyUnwrap(sharedSecret, wrappedKey []byte) ([]byte, error) {
-	// 1. Derive the same Key Encryption Key (KEK) using HKDF
-	kek, err := keyDerivationFunction(sharedSecret, 32)
-	if err != nil {
-		return nil, err
-	}
-
-	// 2. Use the KEK with ChaCha20-Poly1305 for AEAD key unwrapping
-	aead, err := chacha20poly1305.New(kek)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create AEAD for key unwrap: %w", err)
-	}
-
-	nonce := make([]byte, aead.NonceSize())
-
-	chachaKey, err := aead.Open(nil, nonce, wrappedKey, nil)
-	if err != nil {
-		return nil, errors.New("key unwrap failed (invalid tag)")
-	}
-	return chachaKey, nil
+	// Return the byte representation of the normalized string
+	return []byte(normalizedString)
 }
 
 // --- Main Functions ---
 
-// EncryptMessage encrypts the plaintext, signs the ciphertext, and wraps the key for each recipient.
+// EncryptMessage encrypts the plaintext, signs the normalized message structure, and wraps the key for each recipient.
 func EncryptMessage(clearText []byte, signatureKey ed25519.PrivateKey, recipients []MessageContact) (EncryptedMessage, error) {
 	if len(clearText) == 0 || len(recipients) == 0 {
 		return EncryptedMessage{}, errors.New("clear text or recipients list cannot be empty")
 	}
 
-	// 1. Generate a key for chacha20-poly1305 (32 bytes)
+	// 1. Generate symmetric key
 	chachaKey := make([]byte, 32)
 	if _, err := rand.Read(chachaKey); err != nil {
 		return EncryptedMessage{}, fmt.Errorf("failed to generate symmetric key: %w", err)
 	}
 
-	// 2. Generate sender's X25519 key pair for DH key agreement (derived from Ed25519 private key)
+	// 2. Generate sender's public keys
 	senderX25519Priv := Ed25519PrivateKeyToCurve25519(signatureKey)
 	senderX25519Pub, err := DeriveX25519PublicKey(signatureKey)
 	if err != nil {
@@ -187,16 +75,17 @@ func EncryptMessage(clearText []byte, signatureKey ed25519.PrivateKey, recipient
 	}
 	senderEd25519Pub := signatureKey.Public().(ed25519.PublicKey)
 
+	// Initialize the message structure (without Data and Signature yet)
 	msg := EncryptedMessage{
 		Version: 1,
 		Sender: MessageContact{
 			EncryptionKey: senderX25519Pub,
 			SignatureKey:  senderEd25519Pub,
 		},
-		WrappedKeys: make([][]byte, 0, len(recipients)),
+		WrappedKeys: make([]string, 0, len(recipients)),
 	}
 
-	// 3. Encrypt the clear text with chacha20-poly1305 algorithm
+	// 3. Encrypt the clear text
 	aead, err := chacha20poly1305.New(chachaKey)
 	if err != nil {
 		return EncryptedMessage{}, fmt.Errorf("failed to create AEAD for data encryption: %w", err)
@@ -206,14 +95,12 @@ func EncryptMessage(clearText []byte, signatureKey ed25519.PrivateKey, recipient
 		return EncryptedMessage{}, fmt.Errorf("failed to generate nonce: %w", err)
 	}
 
-	// Prepend nonce to the ciphertext for easy retrieval
 	ciphertext := aead.Seal(nonce, nonce, clearText, nil)
-	msg.Data = ciphertext
 
-	// 4. Sign the encrypted text with ed25519 algorithm
-	msg.Signature = ed25519.Sign(signatureKey, msg.Data)
+	// Store Base64 Encoded ciphertext in the message struct
+	msg.Data = base64.StdEncoding.EncodeToString(ciphertext)
 
-	// 5. Wrap the symmetric key with each recipient's key (X25519 DH + HKDF)
+	// 4. Wrap the symmetric key and store Base64 encoded wrapped keys
 	for i, recipient := range recipients {
 		recipientX25519Pub := recipient.EncryptionKey
 
@@ -221,58 +108,73 @@ func EncryptMessage(clearText []byte, signatureKey ed25519.PrivateKey, recipient
 			return EncryptedMessage{}, fmt.Errorf("recipient %d X25519 public key size is incorrect (expected 32 bytes)", i)
 		}
 
-		// Use the correct 2-argument slice-based signature for DH Key Agreement
 		sharedSecret, err := curve25519.X25519(senderX25519Priv, recipientX25519Pub)
 		if err != nil {
 			return EncryptedMessage{}, fmt.Errorf("failed to perform DH key agreement for recipient %d: %w", i, err)
 		}
 
-		// Wrap the symmetric key using the HKDF-derived KEK from the shared secret
-		wrappedKey, err := keyWrap(sharedSecret, chachaKey)
+		wrappedKey, err := KeyWrap(sharedSecret, chachaKey)
 		if err != nil {
 			return EncryptedMessage{}, fmt.Errorf("failed to wrap key for recipient %d: %w", i, err)
 		}
-		msg.WrappedKeys = append(msg.WrappedKeys, wrappedKey)
+
+		msg.WrappedKeys = append(msg.WrappedKeys, base64.StdEncoding.EncodeToString(wrappedKey))
 	}
+
+	// 5. Create normalized message and sign it
+	normalizedMessage := CreateNormalizedMessage(msg)
+	signature := ed25519.Sign(signatureKey, normalizedMessage)
+
+	// Store Base64 Encoded signature
+	msg.Signature = base64.StdEncoding.EncodeToString(signature)
 
 	return msg, nil
 }
 
 // DecryptMessage verifies the message, unwraps the key, and decrypts the ciphertext.
-// The decryptionKey is the recipient's X25519 private key.
 func DecryptMessage(msg EncryptedMessage, decryptionKey []byte, correspondents []MessageContact) ([]byte, error) {
 	if msg.Version != 1 {
 		return nil, errors.New("unsupported message version")
 	}
 
-	// 1. Check the signature of the encrypted data
-	// The Sender.SignatureKey is the Ed25519 public key.
-	if !ed25519.Verify(msg.Sender.SignatureKey, msg.Data, msg.Signature) {
+	// 1. Verify the signature against the normalized message structure
+
+	// Create the expected normalized message string
+	normalizedMessage := CreateNormalizedMessage(msg)
+
+	// Decode the received signature
+	decodedSignature, err := base64.StdEncoding.DecodeString(msg.Signature)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode Base64 signature: %w", err)
+	}
+
+	// Verify the signature using the sender's Ed25519 public key
+	if !ed25519.Verify(msg.Sender.SignatureKey, normalizedMessage, decodedSignature) {
 		return nil, errors.New("signature verification failed: message has been tampered with or is from an unauthorized sender")
 	}
 
-	// 2. Try to decrypt the wrapped keys until one succeeds
+	// 2. Try to unwrap the symmetric key
 	var chachaKey []byte
 	var sharedSecret []byte
 
-	// Sender's encryption key (X25519) is in msg.Sender.EncryptionKey
 	if len(msg.Sender.EncryptionKey) != 32 || len(decryptionKey) != 32 {
 		return nil, errors.New("key size error: sender encryption key or recipient decryption key is not 32 bytes")
 	}
 
-	// Calculate the raw shared secret (DH key agreement) once
-	// Use the correct 2-argument slice-based signature for DH Key Agreement
-	var err error
 	sharedSecret, err = curve25519.X25519(decryptionKey, msg.Sender.EncryptionKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform DH key agreement: %w", err)
 	}
 
-	// Try to unwrap each key with the HKDF-derived KEK
-	for _, wrappedKey := range msg.WrappedKeys {
-		var err error
-		// sharedSecret is now a slice, directly passed to keyUnwrap
-		chachaKey, err = keyUnwrap(sharedSecret, wrappedKey)
+	// Iterate through Base64 encoded wrapped keys
+	for _, wrappedKeyStr := range msg.WrappedKeys {
+		wrappedKey, err := base64.StdEncoding.DecodeString(wrappedKeyStr)
+		if err != nil {
+			log.Printf("Failed to Base64 decode a wrapped key: %v", err)
+			continue
+		}
+
+		chachaKey, err = KeyUnwrap(sharedSecret, wrappedKey)
 
 		if err == nil && len(chachaKey) == 32 {
 			break
@@ -280,7 +182,7 @@ func DecryptMessage(msg EncryptedMessage, decryptionKey []byte, correspondents [
 		if err != nil && err.Error() != "key unwrap failed (invalid tag)" {
 			log.Printf("Non-tag key unwrap error: %v", err)
 		}
-		chachaKey = nil // Reset key if it failed
+		chachaKey = nil
 	}
 
 	if chachaKey == nil {
@@ -293,14 +195,19 @@ func DecryptMessage(msg EncryptedMessage, decryptionKey []byte, correspondents [
 		return nil, fmt.Errorf("failed to create AEAD for data decryption: %w", err)
 	}
 
-	// The nonce is prepended to the ciphertext (msg.Data)
-	if len(msg.Data) < aead.NonceSize() {
-		return nil, errors.New("ciphertext is too short to contain a nonce and tag")
+	// Decode Base64 data (ciphertext + nonce)
+	decodedData, err := base64.StdEncoding.DecodeString(msg.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode Base64 data: %w", err)
 	}
 
 	nonceSize := aead.NonceSize()
-	nonce := msg.Data[:nonceSize]
-	ciphertext := msg.Data[nonceSize:]
+	if len(decodedData) < nonceSize {
+		return nil, errors.New("decoded ciphertext is too short to contain a nonce and tag")
+	}
+
+	nonce := decodedData[:nonceSize]
+	ciphertext := decodedData[nonceSize:]
 
 	clearText, err := aead.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
@@ -309,5 +216,3 @@ func DecryptMessage(msg EncryptedMessage, decryptionKey []byte, correspondents [
 
 	return clearText, nil
 }
-
-// --- Demonstration ---
