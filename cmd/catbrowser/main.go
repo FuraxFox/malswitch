@@ -27,7 +27,7 @@ func main() {
 		ServerListenAddr:         LISTEN_ADDR,
 		ServerCatalogListenPath:  LISTEN_CATALOG_PATH,
 		ServerDownloadListenPath: LISTEN_DOWNLOAD_PATH,
-		ServerTagsListenPath:     LISTEN_TAGS_PATH,
+		//ServerTagsListenPath:     LISTEN_TAGS_PATH,
 	}
 
 	err := ctx.OpenDB()
@@ -48,9 +48,11 @@ func main() {
 		func(w http.ResponseWriter, r *http.Request) {
 			CatalogBrowserRequestHandler(w, r, &ctx)
 		})
-	http.DefaultServeMux.HandleFunc(ctx.ServerTagsListenPath,
-		func(w http.ResponseWriter, r *http.Request) {
-			TagsRequestHandler(w, r, &ctx)
-		})
-	log.Fatal(http.ListenAndServe(LISTEN_ADDR, nil))
+	/*
+	   http.DefaultServeMux.HandleFunc(ctx.ServerTagsListenPath,
+
+	   	func(w http.ResponseWriter, r *http.Request) {
+	   		TagsRequestHandler(w, r, &ctx)
+	   	})
+	*/log.Fatal(http.ListenAndServe(LISTEN_ADDR, nil))
 }
