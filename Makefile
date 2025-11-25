@@ -2,7 +2,9 @@ TARGETS := \
     github.com/FuraxFox/malswitch/cmd/subgateway  \
 	github.com/FuraxFox/malswitch/cmd/subanalyzer \
 	github.com/FuraxFox/malswitch/cmd/exchanger   \
-	github.com/FuraxFox/malswitch/cmd/catbrowser
+	github.com/FuraxFox/malswitch/cmd/catbrowser \
+	github.com/FuraxFox/malswitch/cmd/search \
+
 
 .PHONY: all clean test lint
 
@@ -19,6 +21,22 @@ all: $(TARGETS)
 $(TARGETS):
 	@echo "building $@ : $(notdir $@)"
 	go build -o $(BUILD_DIR)/$(notdir $@) $@
+
+search:	github.com/FuraxFox/malswitch/cmd/search
+	@echo "search built"
+
+subgateway: github.com/FuraxFox/malswitch/cmd/subgateway  
+	@echo "subgateway built"
+
+subanalyzer: github.com/FuraxFox/malswitch/cmd/subanalyzer 
+	@echo "subanalyzer built"
+
+exchanger: github.com/FuraxFox/malswitch/cmd/exchanger   
+	@echo "echanger built"
+
+catbrowser:	github.com/FuraxFox/malswitch/cmd/catbrowser 
+	@echo "catbrowser built"
+	
 
 # Run tests for all targets
 test: test_$(TARGETS)
