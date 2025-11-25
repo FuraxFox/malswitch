@@ -3,7 +3,9 @@ TARGETS := \
 	github.com/FuraxFox/malswitch/cmd/subanalyzer \
 	github.com/FuraxFox/malswitch/cmd/exchanger   \
 	github.com/FuraxFox/malswitch/cmd/catbrowser \
-	github.com/FuraxFox/malswitch/cmd/search \
+	github.com/FuraxFox/malswitch/cmd/searchhead \
+	github.com/FuraxFox/malswitch/cmd/searchclient \
+	github.com/FuraxFox/malswitch/cmd/keygen 
 
 
 .PHONY: all clean test lint
@@ -22,7 +24,11 @@ $(TARGETS):
 	@echo "building $@ : $(notdir $@)"
 	go build -o $(BUILD_DIR)/$(notdir $@) $@
 
-search:	github.com/FuraxFox/malswitch/cmd/search
+keygen: github.com/FuraxFox/malswitch/cmd/keygen
+	@echo "keygen built"
+
+
+search:	github.com/FuraxFox/malswitch/cmd/searchhead 	github.com/FuraxFox/malswitch/cmd/searchclient
 	@echo "search built"
 
 subgateway: github.com/FuraxFox/malswitch/cmd/subgateway  
