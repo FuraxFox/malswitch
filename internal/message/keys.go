@@ -34,10 +34,9 @@ type PublicKeySet struct {
 // The X25519 public key is derived from the X25519 private key, and the
 // Ed25519 public key is part of the Ed25519 private key structure (or derived
 // from the private key seed).
-
 type PrivateKeySet struct {
-	DecryptionKey string `json:"X25519_Priv"`  // X25519 Private Key (Base64)
-	SigningKey    string `json:"Ed25519_Priv"` // Ed25519 Private Key (Base64)
+	DecryptionKey []byte             // X25519 Private Key (Binary)
+	SigningKey    ed25519.PrivateKey // Ed25519 Private Key (Binary)
 }
 
 // LoadContactFromFile reads a public key JSON file, decodes the Base64 keys,
@@ -67,16 +66,46 @@ func LoadContactFromFile(filename string) (MessageContact, error) {
 	}, nil
 }
 
-func LoadPrivateKeys(filename string, privKeys *PrivateKeySet) error {
+// LoadPrivateKeys reads a private key JSON file, decodes the Base64 keys,
+// and returns a PrivateKeySet struct containing binary keys.
+func LoadPrivateKeys(filename string) (PrivateKeySet, error) {
+	// Local struct to handle Base64 decoding from JSON
+	type PrivateKeySetBase64 struct {
+		DecryptionKey string `json:"X25519_Priv"`
+		SigningKey    string `json:"Ed25519_Priv"`
+	}
 
+	var base64Keys PrivateKeySetBase64
 	data, err := os.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("failed to read file %s: %w", filename, err)
+		return PrivateKeySet{}, fmt.Errorf("failed to read file %s: %w", filename, err)
 	}
-	if err := json.Unmarshal(data, privKeys); err != nil {
-		return fmt.Errorf("failed to parse JSON from %s: %w", filename, err)
+	if err := json.Unmarshal(data, &base64Keys); err != nil {
+		return PrivateKeySet{}, fmt.Errorf("failed to parse JSON from %s: %w", filename, err)
 	}
-	return nil
+
+	// Decode X25519 Private Key
+	xPriv, err := base64.StdEncoding.DecodeString(base64Keys.DecryptionKey)
+	if err != nil {
+		return PrivateKeySet{}, fmt.Errorf("failed to decode X25519 private key: %w", err)
+	}
+	if len(xPriv) != 32 {
+		return PrivateKeySet{}, fmt.Errorf("invalid X25519 private key size: expected 32 bytes, got %d", len(xPriv))
+	}
+
+	// Decode Ed25519 Private Key
+	edPriv, err := base64.StdEncoding.DecodeString(base64Keys.SigningKey)
+	if err != nil {
+		return PrivateKeySet{}, fmt.Errorf("failed to decode Ed25519 private key: %w", err)
+	}
+	if len(edPriv) != ed25519.PrivateKeySize {
+		return PrivateKeySet{}, fmt.Errorf("invalid Ed25519 private key size: expected %d bytes, got %d", ed25519.PrivateKeySize, len(edPriv))
+	}
+
+	return PrivateKeySet{
+		DecryptionKey: xPriv,
+		SigningKey:    ed25519.PrivateKey(edPriv),
+	}, nil
 }
 
 // Ed25519PrivateKeyToCurve25519 converts an Ed25519 private key to an X25519 private key.
@@ -165,34 +194,33 @@ func GenerateKeys() (ed25519.PublicKey, ed25519.PrivateKey, error) {
 	return ed25519.GenerateKey(rand.Reader)
 }
 
+// GenerateKeySets generates a complete set of X25519 and Ed25519 key pairs.
+// It returns the public keys in the Base64-string structure for file output
+// and the private keys in the binary structure for immediate use.
 func GenerateKeySets() (PublicKeySet, PrivateKeySet, error) {
 	// 1. Generate core Ed25519 key pair
 	edPub, edPriv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		return PublicKeySet{}, PrivateKeySet{},
-			fmt.Errorf("key generation error: failed to generate Ed25519 keys: %v", err)
+		return PublicKeySet{}, PrivateKeySet{}, fmt.Errorf("failed to generate Ed25519 keys: %w", err)
 	}
 
 	// 2. Derive X25519 keys from the Ed25519 private key
 	x25519Pub, err := DeriveX25519PublicKey(edPriv)
 	if err != nil {
-		return PublicKeySet{}, PrivateKeySet{},
-			fmt.Errorf("key generation error: failed to derive X25519 public key: %v", err)
+		return PublicKeySet{}, PrivateKeySet{}, fmt.Errorf("failed to derive X25519 public key: %w", err)
 	}
 	x25519Priv := Ed25519PrivateKeyToCurve25519(edPriv)
 
-	// 3. Prepare structures for JSON output (Base64 encoded)
-
-	// --- Public Keys ---
+	// 3. Package Public Keys (Base64 encoded strings for file output)
 	pubKeys := PublicKeySet{
 		EncryptionKey: base64.StdEncoding.EncodeToString(x25519Pub),
 		SignatureKey:  base64.StdEncoding.EncodeToString(edPub),
 	}
 
-	// --- Private Keys ---
+	// 4. Package Private Keys (Binary format for runtime use)
 	privKeys := PrivateKeySet{
-		DecryptionKey: base64.StdEncoding.EncodeToString(x25519Priv),
-		SigningKey:    base64.StdEncoding.EncodeToString(edPriv),
+		DecryptionKey: x25519Priv,
+		SigningKey:    edPriv,
 	}
 
 	return pubKeys, privKeys, nil

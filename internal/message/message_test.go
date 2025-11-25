@@ -16,7 +16,6 @@ func TestSecureMessenger(t *testing.T) {
 	r1XPriv := Ed25519PrivateKeyToCurve25519(r1EdPriv)
 	r1XPub, _ := DeriveX25519PublicKey(r1EdPriv)
 	r2EdPub, r2EdPriv, _ := GenerateKeys()
-	//r2XPriv := Ed25519PrivateKeyToCurve25519(r2EdPriv)
 	r2XPub, _ := DeriveX25519PublicKey(r2EdPriv)
 
 	t.Logf("\n[Keys Generated]")
