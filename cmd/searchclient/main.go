@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/FuraxFox/malswitch/internal/message"
+	"github.com/FuraxFox/malswitch/internal/search"
 
 	"bufio"
 	"bytes"
@@ -120,7 +121,21 @@ func readAndSendMessages(serverURL string) {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		err := sendEncryptedMessage(serverURL, line)
+		request := search.SearchRequest{
+
+			CommunityUUID: "102a4868-74b9-41c3-b2de-694f02def520",
+		}
+		request.Content.Type = search.IOC_TYPE_TEXT
+		request.Content.Text = line
+		// TODO manage a test community
+
+		data, err := request.Serialize()
+		if err != nil {
+			log.Printf("[Error] Could not build message: %v", err)
+			continue
+		}
+
+		err = sendEncryptedMessage(serverURL, string(data))
 		if err != nil {
 			log.Printf("[Error] Could not send message: %v", err)
 		}

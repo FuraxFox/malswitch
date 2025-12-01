@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/FuraxFox/malswitch/internal/message"
+	"github.com/FuraxFox/malswitch/internal/search"
 
 	"encoding/base64"
 	"encoding/json"
@@ -25,6 +26,33 @@ var (
 	Correspondents = []message.MessageContact{}
 )
 
+func CheckSenderAuthorization(msg *message.EncryptedMessage, correspondents []message.MessageContact) bool {
+
+	for _, contact := range correspondents {
+		if bytes.Equal(msg.Sender.SignatureKey, contact.SignatureKey) {
+			return true
+		}
+	}
+	return false
+}
+
+func RespondRequest(w http.ResponseWriter, r *http.Request, recipientContact message.MessageContact, content string) {
+
+	// Encrypt response using server's signing key and client's public keys
+	responseMsg, err := message.EncryptMessage([]byte(content), ServerSigningKey, []message.MessageContact{recipientContact})
+	if err != nil {
+		log.Printf("RESPONSE ENCRYPTION FAILED: %v", err)
+		http.Error(w, "Failed to encrypt response", http.StatusInternalServerError)
+		return
+	}
+
+	// Send encrypted response back
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(responseMsg)
+	log.Println("Sent encrypted response back to client.")
+}
+
 // DecryptHandler handles incoming JSON messages, decrypts, and sends an encrypted response.
 func DecryptHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -44,22 +72,14 @@ func DecryptHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Log incoming message details
+	// Log incoming message details
 	log.Println("--- Received Encrypted Message ---")
 	senderSigKeyB64 := base64.StdEncoding.EncodeToString(msg.Sender.SignatureKey)
 	log.Printf("Sender Sig Key (B64): %s", senderSigKeyB64)
 	log.Printf("Data B64 Length: %d", len(msg.Data))
 
-	// 2. Authorization Check: Ensure sender's key is in the trusted list
-	isAuthorized := false
-	for _, contact := range Correspondents {
-		if bytes.Equal(msg.Sender.SignatureKey, contact.SignatureKey) {
-			isAuthorized = true
-			break
-		}
-	}
-
-	if !isAuthorized {
+	// Authorization Check: Ensure sender's key is in the trusted list
+	if !CheckSenderAuthorization(&msg, Correspondents) {
 		log.Printf("AUTHORIZATION FAILED: Sender signature key %s is not in the trusted list.", senderSigKeyB64)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
@@ -67,12 +87,10 @@ func DecryptHandler(w http.ResponseWriter, r *http.Request) {
 			"status": "Authorization Failed",
 			"error":  "Sender signature key is not recognized or trusted.",
 		})
-		return
 	}
 
-	// 3. Decrypt the message (includes cryptographic signature verification)
+	// Decrypt the message (includes cryptographic signature verification)
 	clearText, err := message.DecryptMessage(msg, ServerDecryptionKey, Correspondents)
-
 	if err != nil {
 		log.Printf("DECRYPTION/VERIFICATION FAILED: %v", err)
 		w.Header().Set("Content-Type", "application/json")
@@ -85,29 +103,24 @@ func DecryptHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Success
-	decryptedString := string(clearText)
+	decryptedString := clearText
 	log.Println("--- DECRYPTION SUCCESS ---")
-	log.Printf("Decrypted Message: %s", decryptedString)
+	log.Printf("Decrypted Message: %s\n", decryptedString)
 
-	// 4. Encrypt the Response
-	responseText := "MESSAGE RECEIVED"
-
-	// The recipient for the response is the original sender (client)
-	recipientContact := msg.Sender
-
-	// Encrypt response using server's signing key and client's public keys
-	responseMsg, err := message.EncryptMessage([]byte(responseText), ServerSigningKey, []message.MessageContact{recipientContact})
+	var responseText string
+	request, err := search.DeserializeSearch(decryptedString)
 	if err != nil {
-		log.Printf("RESPONSE ENCRYPTION FAILED: %v", err)
-		http.Error(w, "Failed to encrypt response", http.StatusInternalServerError)
-		return
+		responseText = fmt.Sprintf("INVALID REQUEST: %v", err)
+	} else {
+		responseText = "REQUEST RECEIVED"
 	}
 
-	// 5. Send encrypted response back
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(responseMsg)
-	log.Println("Sent encrypted response back to client.")
+	// Process request
+	fmt.Printf("Request: [%s]", request.String())
+
+	// The recipient for the response is the original sender (client)
+
+	RespondRequest(w, r, msg.Sender, responseText)
 }
 
 func main() {
