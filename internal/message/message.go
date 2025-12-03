@@ -1,9 +1,11 @@
 package message
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -21,8 +23,8 @@ type EncryptedMessage struct {
 	Sender      MessageContact
 }
 
-// EncryptMessage encrypts the plaintext, signs the normalized message structure, and wraps the key for each recipient.
-func EncryptMessage(clearText []byte, signatureKey ed25519.PrivateKey, recipients []MessageContact) (EncryptedMessage, error) {
+// encryptMessage encrypts the plaintext, signs the normalized message structure, and wraps the key for each recipient.
+func encryptMessage(clearText []byte, signatureKey ed25519.PrivateKey, recipients []MessageContact) (EncryptedMessage, error) {
 	if len(clearText) == 0 || len(recipients) == 0 {
 		return EncryptedMessage{}, errors.New("clear text or recipients list cannot be empty")
 	}
@@ -97,37 +99,50 @@ func EncryptMessage(clearText []byte, signatureKey ed25519.PrivateKey, recipient
 	return msg, nil
 }
 
-// DecryptMessage verifies the message, unwraps the key, and decrypts the ciphertext.
-func DecryptMessage(msg EncryptedMessage, decryptionKey []byte, correspondents []MessageContact) ([]byte, error) {
+// checkSenderAuthorization verifies if the signing key of a message is in a contact list public signing key
+func checkSenderAuthorization(msg *EncryptedMessage, correspondents []MessageContact) bool {
+
+	for _, contact := range correspondents {
+		if bytes.Equal(msg.Sender.SignatureKey, contact.SignatureKey) {
+			return true
+		}
+	}
+	return false
+}
+
+// decryptMessage verifies the message, unwraps the key, and decrypts the ciphertext.
+func decryptMessage(msg EncryptedMessage, decryptionKey []byte, correspondents []MessageContact) ([]byte, error) {
 	if msg.Version != 1 {
 		return nil, errors.New("unsupported message version")
 	}
 
-	// 1. Verify the signature against the normalized message structure
-	normalizedMessage := CreateNormalizedMessage(msg)
+	if !checkSenderAuthorization(&msg, correspondents) {
+		return nil, fmt.Errorf("message unacceptable: unknown sender")
+	}
 
+	// Prepare signature verification: decode signature, compute normalized version of the message
+	normalizedMessage := CreateNormalizedMessage(msg)
 	decodedSignature, err := base64.StdEncoding.DecodeString(msg.Signature)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode Base64 signature: %w", err)
 	}
 
-	// Crucial check: Verify signature
+	// Verify signature
 	if !ed25519.Verify(msg.Sender.SignatureKey, normalizedMessage, decodedSignature) {
 		return nil, errors.New("signature verification failed: message has been tampered with or is from an unauthorized sender")
 	}
 
-	// 2. Try to unwrap the symmetric key
+	// Prepare the symmetric key unwraping
 	var chachaKey []byte
-
 	if len(msg.Sender.EncryptionKey) != 32 || len(decryptionKey) != 32 {
 		return nil, errors.New("key size error: sender encryption key or recipient decryption key is not 32 bytes")
 	}
-
 	sharedSecret, err := curve25519.X25519(decryptionKey, msg.Sender.EncryptionKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform DH key agreement: %w", err)
 	}
 
+	// Try to unwrap each symmetric key until we find one for us
 	for _, wrappedKeyStr := range msg.WrappedKeys {
 		wrappedKey, err := base64.StdEncoding.DecodeString(wrappedKeyStr)
 		if err != nil {
@@ -136,40 +151,73 @@ func DecryptMessage(msg EncryptedMessage, decryptionKey []byte, correspondents [
 		}
 
 		chachaKey, err = keyUnwrap(sharedSecret, wrappedKey)
-
 		if err == nil && len(chachaKey) == 32 {
 			break
 		}
 		chachaKey = nil
 	}
 
+	// No key found
 	if chachaKey == nil {
 		return nil, errors.New("key unwrapping failed for all wrapped keys (shared secret mismatch or key data corruption)")
 	}
 
-	// 3. Decrypt the message
+	// Prepare to decrypt the message: key and context creation
 	aead, err := chacha20poly1305.New(chachaKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AEAD for data decryption: %w", err)
 	}
-
 	decodedData, err := base64.StdEncoding.DecodeString(msg.Data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode Base64 data: %w", err)
 	}
-
 	nonceSize := aead.NonceSize()
 	if len(decodedData) < nonceSize {
 		return nil, errors.New("decoded ciphertext is too short to contain a nonce and tag")
 	}
 
+	// Decrypt the message
 	nonce := decodedData[:nonceSize]
 	ciphertext := decodedData[nonceSize:]
-
 	clearText, err := aead.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
 		return nil, errors.New("data decryption failed: invalid ciphertext or AEAD tag")
 	}
 
+	//We are done
 	return clearText, nil
+}
+
+// Receive a JSON encoded message, decode it, verify signature and return the payload, the sender and the eventual error
+func ReceiveMessage(rawJSON []byte, decryptionKey []byte, correspondents []MessageContact) ([]byte, MessageContact, error) {
+
+	// Unmarshal the message
+	var msg EncryptedMessage
+	if err := json.Unmarshal(rawJSON, &msg); err != nil {
+		return nil, MessageContact{}, fmt.Errorf("failed to parse encrypted response JSON: %w", err)
+	}
+
+	// Decrypt and verify the message
+	result, err := decryptMessage(msg, decryptionKey, correspondents)
+	if err != nil {
+		return nil, MessageContact{}, fmt.Errorf("failed to decrypt or verify server response: %w", err)
+	}
+
+	return result, msg.Sender, nil
+}
+
+func GenerateMessage(clearText []byte, signingKey []byte, correspondents []MessageContact) ([]byte, error) {
+	// Encrypt the outgoing message
+	encryptedMsg, err := encryptMessage(clearText, signingKey, correspondents)
+	if err != nil {
+		return nil, fmt.Errorf("encryption failed: %w", err)
+	}
+
+	// Marshal to JSON and send
+	jsonPayload, err := json.Marshal(encryptedMsg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	return jsonPayload, nil
 }
