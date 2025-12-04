@@ -9,9 +9,9 @@ import (
 	"fmt"
 )
 
-// IOCPayload is the structure that is serialized into the SearchRequest.Content field.
+// SearchPayload is the structure that is serialized into the SearchRequest.Content field.
 // It uses the 'Type' field as a discriminator to identify the kind of IOC data present.
-type IOCPayload struct {
+type SearchPayload struct {
 	Type string `json:"type"` // e.g., "IP_LIST", "HASH_LIST", "YARA_RULE", "GENERIC_STRING"
 
 	IPs []string `json:"ips,omitempty"` // Used for IP_LIST
@@ -38,9 +38,37 @@ type HashEntry struct {
 	Type  string `json:"type,omitempty"` // e.g., "MD5", "SHA256"
 }
 
+//
+
+// structure to submit a search
 type SearchRequest struct {
-	CommunityUUID string     `json:"community_uuid"`
-	Content       IOCPayload `json:"content"`
+	CommunityUUID string        `json:"community_uuid"`
+	Content       SearchPayload `json:"content"`
+}
+
+// structure to ask for a search result
+type ResultPullRequest struct {
+	CommunityUUID string `json:"community_uuid"`
+	SearchID      string `json:"search_uuid"`
+}
+
+// structure to respond when an error is encountered server side
+type ErrorResponse struct {
+	CommunityUUID string `json:"community_uuid"`
+	Message       string `json:"message"`
+}
+
+// structure to respond to a search submission
+type SearchRequestAcceptedResponse struct {
+	CommunityUUID string `json:"community_uuid"`
+	SearchID      string `json:"search_uuid"`
+}
+
+// structure to respond to a search submission
+type SearchRequestStatusResponse struct {
+	CommunityUUID string `json:"community_uuid"`
+	SearchID      string `json:"search_uuid"`
+	Status        string `json:"search_status"`
 }
 
 // Serialize

@@ -54,7 +54,7 @@ func (m *model) submitSearch() (tea.Model, tea.Cmd) {
 	}
 
 	// Build the IOCPayload based on the selected type
-	payload := search.IOCPayload{
+	payload := search.SearchPayload{
 		Type: m.searchType,
 	}
 
