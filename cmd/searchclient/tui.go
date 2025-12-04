@@ -5,10 +5,12 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"strings"
 
 	"github.com/FuraxFox/malswitch/internal/search"
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -24,30 +26,27 @@ const (
 )
 
 var (
-	appStyle = lipgloss.NewStyle().Padding(1, 2)
-
-	titleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FAFAFA")).
-			Background(lipgloss.Color("#7D56F4")).
-			Padding(0, 1)
-
-	statusStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#25A0F5"))
-
-	errorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF0000"))
-
-	promptStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#EBCB8B"))
-
-	selectedStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#7D56F4")).
-			Padding(0, 1)
+	appStyle          = lipgloss.NewStyle().Padding(1, 2).BorderStyle(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#FFFFFF"))
+	titleStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("#FAFAFA")).Background(lipgloss.Color("#7D56F4")).Padding(0, 1)
+	listTitleStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#FAFAFA")).Background(lipgloss.Color("#25A0F5")).Padding(0, 1)
+	statusStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#25A0F5"))
+	errorStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000"))
+	promptStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#EBCB8B"))
+	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
+	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
+	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
+	helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
+	//selectedItemStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#7D56F4")).Padding(0, 1)
 )
 
+type SearchOption string
+
+func (i SearchOption) FilterValue() string { return "" }
+
+const listHeight = 12
+
 // Search options available to the user
-var searchOptions = []string{
+var searchOptionValues = []string{
 	search.IOC_TYPE_IP_LIST,
 	search.IOC_TYPE_HASH_LIST,
 	search.IOC_TYPE_YARA_RULE,
@@ -62,20 +61,56 @@ var searchPrompts = map[string]string{
 	search.IOC_TYPE_TEXT:      "Enter Full Text Search String:",
 }
 
-// --- TUI Model and Messages ---
+var searchOptions = []list.Item{
+	SearchOption(search.IOC_TYPE_IP_LIST),
+	SearchOption(search.IOC_TYPE_HASH_LIST),
+	SearchOption(search.IOC_TYPE_YARA_RULE),
+	SearchOption(search.IOC_TYPE_TEXT),
+}
+
+type searchOptionDelegate struct{}
+
+func (d searchOptionDelegate) Height() int                             { return 1 }
+func (d searchOptionDelegate) Spacing() int                            { return 0 }
+func (d searchOptionDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d searchOptionDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	opt, ok := listItem.(SearchOption)
+	if !ok {
+		return
+	}
+	str := fmt.Sprintf("%d. %s", index+1, opt)
+	fn := itemStyle.Render
+	if index == m.Index() {
+		fn = func(s ...string) string {
+			return selectedItemStyle.Render("> " + strings.Join(s, " "))
+		}
+	}
+	fmt.Fprint(w, fn(str))
+}
 
 func initialModel(serverURL string, uuid string, clientPrivFile string, serverPubKeyFile string) model {
 	ti := textinput.New()
 	ti.Placeholder = "IOCs or Rule..."
 	ti.Focus()
 	ti.CharLimit = 200
-	ti.Width = 80
+	ti.Width = 78
+
+	const defaultListWidth = 20
+
+	l := list.New(searchOptions, searchOptionDelegate{}, defaultListWidth, listHeight)
+	l.Title = "Select Search Type:"
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(false)
+	l.Styles.Title = listTitleStyle
+	l.Styles.PaginationStyle = paginationStyle
+	l.Styles.HelpStyle = helpStyle
 
 	m := model{
-		stage:         stageSelect,
-		input:         ti,
-		communityUUID: uuid,
-		ServerURL:     serverURL,
+		stage:          stageSelect,
+		input:          ti,
+		communityUUID:  uuid,
+		ServerURL:      serverURL,
+		lstSearchTypes: l,
 	}
 
 	// Load the specified key files
@@ -96,11 +131,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+
+	// the view size was update
+	case tea.WindowSizeMsg:
+		// Optional: Handle window resizing
+		m.height = msg.Height
+		m.width = msg.Width
+		m.input.Width = m.width - 2
+		m.lstSearchTypes.SetWidth(m.width - 2)
+
+	// A key was pressed
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
+		switch msg.Type {
+		case tea.KeyCtrlC, tea.KeyEsc:
 			return m, tea.Quit
-		case "esc":
+		case tea.KeyLeft:
 			// Go back to selection stage if not already there or loading
 			if m.stage == stageInput || m.stage == stageResult {
 				m.stage = stageSelect
@@ -110,13 +155,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.input.Blur()
 			}
 			return m, nil
-		}
-
-		switch m.stage {
-		case stageSelect:
-			return m.handleSelectStage(msg)
-		case stageInput:
-			return m.handleInputStage(msg)
 		}
 
 	case sendResultMsg:
@@ -129,69 +167,91 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.errorMsg = ""
 		}
 		return m, nil
-
-	case tea.WindowSizeMsg:
-		// Optional: Handle window resizing
 	}
 
+	switch m.stage {
+	case stageSelect:
+		return m.handleSelectStage(msg)
+	case stageInput:
+		return m.handleInputStage(msg)
+	}
 	// Forward input messages to the text input model
-	if m.stage == stageInput {
-		m.input, cmd = m.input.Update(msg)
+	switch m.stage {
+	case stageInput:
+
+	case stageSelect:
+
 	}
 
 	return m, cmd
 }
 
-func (m *model) handleSelectStage(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "up", "k":
-		m.cursor = (m.cursor - 1 + len(searchOptions)) % len(searchOptions)
-	case "down", "j":
-		m.cursor = (m.cursor + 1) % len(searchOptions)
-	case "enter":
-		m.searchType = searchOptions[m.cursor]
-		m.input.Placeholder = searchPrompts[m.searchType]
-		m.input.Focus()
-		m.stage = stageInput
+func (m *model) handleSelectStage(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+
+		switch keypress := msg.String(); keypress {
+		case "enter":
+			sel := m.lstSearchTypes.SelectedItem().(SearchOption)
+			m.searchType = string(sel)
+
+			//m.searchType = searchOptions[m.cursor]
+			m.input.Placeholder = searchPrompts[m.searchType]
+			m.input.Focus()
+			m.stage = stageInput
+			//case "up", "k":
+			// m.cursor = (m.cursor - 1 + len(searchOptionValues)) % len(searchOptionValues)
+			//case "down", "j":
+			// m.cursor = (m.cursor + 1) % len(searchOptionValues)
+		}
 	}
-	return m, nil
+
+	var cmd tea.Cmd
+	m.lstSearchTypes, cmd = m.lstSearchTypes.Update(msg)
+
+	return m, cmd
 }
 
-func (m *model) handleInputStage(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "enter":
-		// Build and send the request
-		return m.submitSearch()
+func (m *model) handleInputStage(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch keypress := msg.String(); keypress {
+		case "enter":
+			// Build and send the request
+			return m.submitSearch()
+		}
 	}
-
+	var cmd tea.Cmd
 	// Pass all other key events to the text input for processing
-	m.input, _ = m.input.Update(msg)
-	return m, nil
+	m.input, cmd = m.input.Update(msg)
+	return m, cmd
 }
 
 func (m model) View() string {
 	s := strings.Builder{}
 
-	s.WriteString(titleStyle.Render(" Secure IOC Client ") + "\n\n")
+	s.WriteString(titleStyle.Render(" Search Client ") + "\n\n")
 
 	switch m.stage {
 	case stageSelect:
-		s.WriteString(promptStyle.Render("Select Search Type:") + "\n")
-		for i, choice := range searchOptions {
-			cursor := "  "
-			if m.cursor == i {
-				cursor = selectedStyle.Render(">")
-				s.WriteString(fmt.Sprintf("%s %s\n", cursor, choice))
-			} else {
-				s.WriteString(fmt.Sprintf("%s %s\n", cursor, choice))
-			}
-		}
+		//s.WriteString(promptStyle.Render("Select Search Type:") + "\n")
+		s.WriteString(m.lstSearchTypes.View())
+		/*
+			for i, choice := range searchOptionValues {
+				cursor := "  "
+				if m.cursor == i {
+					cursor = selectedStyle.Render(">")
+					s.WriteString(fmt.Sprintf("%s %s\n", cursor, choice))
+				} else {
+					s.WriteString(fmt.Sprintf("%s %s\n", cursor, choice))
+				}
+			}*/
 		s.WriteString("\n(Press Enter to confirm, q to quit)\n")
 
 	case stageInput:
 		s.WriteString(promptStyle.Render(searchPrompts[m.searchType]) + "\n")
 		s.WriteString(m.input.View() + "\n\n")
-		s.WriteString("(Press Enter to send, Esc to go back, q to quit)\n")
+		s.WriteString("(Press Enter to send, Left arrow to go back, q to quit)\n")
 
 	case stageLoading:
 		s.WriteString(statusStyle.Render("...Working...") + "\n")
@@ -203,11 +263,37 @@ func (m model) View() string {
 		} else {
 			s.WriteString(statusStyle.Render("SUCCESS: ") + m.resultMsg + "\n\n")
 		}
-		s.WriteString("(Press Esc to start a new search, q to quit)\n")
+		s.WriteString("(Press Left Arrow to start a new search, q to quit)\n")
 	}
 
 	// Display persistent info (like UUID)
 	s.WriteString(fmt.Sprintf("\nCommunity: %s\n", m.communityUUID))
 
 	return appStyle.Render(s.String())
+}
+
+// Msg to handle the result of the asynchronous network operation
+type sendResultMsg struct {
+	err    error
+	result string // Decrypted response from server
+}
+
+// Command to start the asynchronous network operation
+func (m *model) sendRequestCmd(request search.SearchRequest) tea.Cmd {
+	return func() tea.Msg {
+
+		data, err := request.Serialize()
+		if err != nil {
+			return sendResultMsg{err: fmt.Errorf("could not build signed message: %w", err)}
+		}
+
+		// Encrypt the  JSON payload as clearText
+		ack, err := sendEncryptedMessage(m.ServerURL, &m.ClientKeys, &m.ServerContact, string(data))
+		if err != nil {
+			return sendResultMsg{err: err}
+		}
+
+		// Mock success acknowledgement (The server would usually send an ACK)
+		return sendResultMsg{result: ack}
+	}
 }

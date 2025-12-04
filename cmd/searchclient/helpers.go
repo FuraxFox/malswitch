@@ -11,8 +11,6 @@ import (
 	"net/http"
 
 	"github.com/FuraxFox/malswitch/internal/message"
-	"github.com/FuraxFox/malswitch/internal/search"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 // initKeysFromFile loads keys from the provided file paths, simulating the original logic.
@@ -73,31 +71,4 @@ func sendEncryptedMessage(serverURL string, clientKeys *message.PrivateKeySet, s
 	// Success is implied by the lack of error from DecryptMessage and the OK status.
 	log.Printf("Acknowlede received: %v", ack)
 	return string(ack), nil
-}
-
-// Msg to handle the result of the asynchronous network operation
-type sendResultMsg struct {
-	err    error
-	result string // Decrypted response from server
-}
-
-// Command to start the asynchronous network operation
-func (m *model) sendRequestCmd(request search.SearchRequest) tea.Cmd {
-	return func() tea.Msg {
-
-		data, err := request.Serialize()
-		if err != nil {
-			return sendResultMsg{err: fmt.Errorf("could not build signed message: %w", err)}
-		}
-
-		// Encrypt the  JSON payload as clearText
-		ack, err := sendEncryptedMessage(m.ServerURL, &m.ClientKeys, &m.ServerContact, string(data))
-
-		if err != nil {
-			return sendResultMsg{err: err}
-		}
-
-		// Mock success acknowledgement (The server would usually send an ACK)
-		return sendResultMsg{result: ack}
-	}
 }

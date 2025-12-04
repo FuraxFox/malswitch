@@ -13,23 +13,31 @@ import (
 
 	"github.com/FuraxFox/malswitch/internal/message"
 	"github.com/FuraxFox/malswitch/internal/search"
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 // --- Global Client Configuration ---
 type model struct {
-	stage         int
-	cursor        int // For selection stage
-	input         textinput.Model
-	searchType    string
-	loadingMsg    string
-	resultMsg     string
-	errorMsg      string
+	lstSearchTypes list.Model
+	input          textinput.Model
+	height         int
+	width          int
+
+	stage  int
+	cursor int // For selection stage
+
+	searchType string
+	loadingMsg string
+	resultMsg  string
+	errorMsg   string
+
 	communityUUID string
+	ServerURL     string
 	ClientKeys    message.PrivateKeySet
 	ServerContact message.MessageContact // Server's public key info
-	ServerURL     string
+
 }
 
 var (
@@ -105,7 +113,9 @@ func main() {
 
 	// TUI Execution
 	fmt.Println("Starting Secure Message Client TUI...")
-	p := tea.NewProgram(initialModel(serverURL, communityUUID, clientPrivFile, serverPubKeyFile))
+	p := tea.NewProgram(
+		initialModel(serverURL, communityUUID, clientPrivFile, serverPubKeyFile),
+		tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		log.Fatalf("Alas, there's been an error: %v", err)
 	}
