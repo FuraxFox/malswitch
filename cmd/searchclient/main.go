@@ -25,8 +25,7 @@ type model struct {
 	height         int
 	width          int
 
-	stage  int
-	cursor int // For selection stage
+	stage int
 
 	searchType string
 	loadingMsg string

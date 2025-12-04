@@ -39,19 +39,13 @@ var (
 	//selectedItemStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#7D56F4")).Padding(0, 1)
 )
 
+/////////////////////////////////////////////////////// Search type list widget
+
 type SearchOption string
 
 func (i SearchOption) FilterValue() string { return "" }
 
 const listHeight = 12
-
-// Search options available to the user
-var searchOptionValues = []string{
-	search.IOC_TYPE_IP_LIST,
-	search.IOC_TYPE_HASH_LIST,
-	search.IOC_TYPE_YARA_RULE,
-	search.IOC_TYPE_TEXT,
-}
 
 // Map from option type to the prompt text
 var searchPrompts = map[string]string{
@@ -61,6 +55,7 @@ var searchPrompts = map[string]string{
 	search.IOC_TYPE_TEXT:      "Enter Full Text Search String:",
 }
 
+// Search options available to the user
 var searchOptions = []list.Item{
 	SearchOption(search.IOC_TYPE_IP_LIST),
 	SearchOption(search.IOC_TYPE_HASH_LIST),
@@ -87,6 +82,8 @@ func (d searchOptionDelegate) Render(w io.Writer, m list.Model, index int, listI
 	}
 	fmt.Fprint(w, fn(str))
 }
+
+////////////////////////////////////////////////////// Interface initialisation
 
 func initialModel(serverURL string, uuid string, clientPrivFile string, serverPubKeyFile string) model {
 	ti := textinput.New()
@@ -121,12 +118,11 @@ func initialModel(serverURL string, uuid string, clientPrivFile string, serverPu
 	return m
 }
 
-// --- Bubble Tea Core Functions ---
-
 func (m model) Init() tea.Cmd {
 	return nil
 }
 
+// /////////////////////////////////////////////////////// Message loop handling
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -195,14 +191,10 @@ func (m *model) handleSelectStage(msg tea.Msg) (tea.Model, tea.Cmd) {
 			sel := m.lstSearchTypes.SelectedItem().(SearchOption)
 			m.searchType = string(sel)
 
-			//m.searchType = searchOptions[m.cursor]
 			m.input.Placeholder = searchPrompts[m.searchType]
 			m.input.Focus()
 			m.stage = stageInput
-			//case "up", "k":
-			// m.cursor = (m.cursor - 1 + len(searchOptionValues)) % len(searchOptionValues)
-			//case "down", "j":
-			// m.cursor = (m.cursor + 1) % len(searchOptionValues)
+
 		}
 	}
 
@@ -227,6 +219,8 @@ func (m *model) handleInputStage(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+//////////////////////////////////////////////////////////// Update the display
+
 func (m model) View() string {
 	s := strings.Builder{}
 
@@ -234,18 +228,7 @@ func (m model) View() string {
 
 	switch m.stage {
 	case stageSelect:
-		//s.WriteString(promptStyle.Render("Select Search Type:") + "\n")
 		s.WriteString(m.lstSearchTypes.View())
-		/*
-			for i, choice := range searchOptionValues {
-				cursor := "  "
-				if m.cursor == i {
-					cursor = selectedStyle.Render(">")
-					s.WriteString(fmt.Sprintf("%s %s\n", cursor, choice))
-				} else {
-					s.WriteString(fmt.Sprintf("%s %s\n", cursor, choice))
-				}
-			}*/
 		s.WriteString("\n(Press Enter to confirm, q to quit)\n")
 
 	case stageInput:
@@ -271,6 +254,8 @@ func (m model) View() string {
 
 	return appStyle.Render(s.String())
 }
+
+///////////////////////////////////////////// Sending the request to the server
 
 // Msg to handle the result of the asynchronous network operation
 type sendResultMsg struct {
