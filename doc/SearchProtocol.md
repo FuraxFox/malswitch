@@ -41,28 +41,64 @@ type Request struct {
 ```
 
 Where Type can be 
-* `SubmitSearch`, 
-* `SearchAccepted`, 
-* `ResultPull`,` , 
-* `SearchResult`, 
 * `Error`, 
+* `SearchSubmit`, 
+* `SearchAccepted`, 
+* `SearchResultPull`, 
+* `SearchResult`, 
 * `CommunityRefresh`, 
 * `CommunityResign`, 
-* `CommunityReplace`, 
-* `CommunityChangeAccepted`
+* `CommunityUpdate`, 
+* `CommunityChangeResult`
 
 ## Community management sub-protocol description
 
+Communities are group of users characterized by a key pair (signing and 
+encrypting).
+A community is signed by a community owner.
+It is characterized by a UUID which acts as the community name.
+It contains a `thresold`  that defines the maximum level of IOC acceptable 
+to share on the community.
+
 ### Community refresh
 
-A community refresh is the 
+A community refresh happens when the Community Owner send a community to a member.
+The member then anwser with a `CommunityUpdateResult`.
 
 ```
-Commnity Owner                                      CommunityMembers
----------------------                               ----------------- 
-<generate request>    =======(CommunityRefresh)====> <accept update>
-<enqueue ref>         <======(SearchAccepted)====== <enqueue search>
+Commnity Owner                                     Community Members
+-------------------                                ----------------- 
+<generate request>  =======(CommunityRefresh)====> <accept update>
+<process result>    <==(CommunityUpdateResult)==== <enqueue search>
 ```
+
+### Community resignation
+
+A community resignation happens when a community member ask for his keys to be 
+removed from the community.
+A member can only resign himself.
+
+```
+Commnity member                                          Community Owner
+--------------------                                     ----------------- 
+<generate request>   =======(CommunityResignMember)====> <process resignation>
+<process result>     <======(CommunityUpdateResult)===== <enqueue search>
+```
+
+
+### Community resignation
+
+A community update happens when a community member ask for his keys to be
+replaced by new keys in the community.
+A member can only update himself.
+
+```
+Commnity member                                     Community Owner
+---------------------                               ----------------- 
+<generate request>    =======(CommunityUpdate)====> <process resignation>
+<enqueue ref>         <==(CommunityUpdateResult)=== <enqueue search>
+```
+
 
 ## Search sub-protocol description
 
@@ -70,25 +106,39 @@ All requests are serialized as JSON.
 The request JSON is transported in a aiq-message.
 
 A client submit a `SubmitSearch` request to a *SearchHead*.
-The *SearchHead* answers with a `SearchAccepted` message containing a `search_uuid` 
-if the search was accepted, or an `Error` message otherwise.
+The *SearchHead* answers with a `SearchAccepted` message if the search 
+was accepted, or an `Error` message otherwise.
 
-The client can then pull the *SearchHead* by sending a `ResultPull` containin the `search_uuid` to get the result status.
-It get a `SearchResult` answer that contains: the `search_uuid`, a `search_status` and optionnaly a `search_result_content` fields.
-`search_status` can be : `waiting`, `running`, `dead`, `finished` or `unknown`.
-`search_result_content` is only present if `search_status` is set to `finished`.
+`SearchReference` is defined as follow:
+```go
+type SearchReference struct {
+    SearchUUID string `json:"search_uuid"`
+    Action     string `json:"search_action"`
+}
+```
+where `search_action` must be `accepted`.
 
-`search_result_content` is defined as follow:
+The client can then pull the *SearchHead* by sending a `SearchReference` 
+with `search_action` set to `pull` to get the result status.
+
+The *SearchHead returns a `SearchResult` answer that contains a status.
+
+The status can be : `waiting`, `running`, `dead`, `finished` or `unknown`.
+
+Two other fields `matches` and `match_count` are only present if the status 
+is set to `finished`.
+
+`SearchResult` is defined as follow:
 ```go 
 type SearchMatch struct {
-    UUID        string `json:match_uuid`
-    Reference   string `json:reference`
+    MatchUUID   string `json:"match_uuid"`
+    Reference   string `json:"reference"`
     ContentURL  string `json:"content_uri,omitempty"`
     ContenType  string `json:"content_type,omitempty"`
 }
 
 type SearchResult struct {
-    SearchUUID   string        `json:search_uuid`
+    SearchUUID   string        `json:"search_uuid"`
     Status       string        `json:"status"`
     MatchesCount int           `json:"matches_count", omitempty"`
     Matches      []SearchMatch `json:"matches,omitempty"`
@@ -98,28 +148,21 @@ type SearchResult struct {
 ### Search request submission
 
 ```
-Client                                              SearchHead
----------------------                               ----------------- 
-<generate request>    =======(SubmitSearch)=======> <accept search>
-<enqueue ref>         <======(SearchAccepted)====== <enqueue search>
+Client                                             SearchHead
+--------------------                               ----------------- 
+<generate request>  =========(SearchSubmit)=======> <accept search>
+<enqueue ref>       <=(SearchReference(accepted))== <enqueue search>
 ```
 
 ### Search result interrogation
 
 ```
-Client                                              Searchhead
----------------------                               ----------------- 
-<check result>        ========(ResultPull)========> <check queue>
-<process result>      <==(SearchResult)============ <generate result>
+Client                                               Searchhead
+---------------------                                ----------------- 
+<check result>        ===(SearchReference(pull))===> <check queue>
+<process result>      <=======(SearchResult)======== <generate result>
 ```
 
 
-### Error
-```
-Client                                              Searchhead
----------------------                               ----------------- 
-<generate request>    =======(SubmitSearch)=======> <accept search>
-<error processing>    <=========(Error)============ <generate error>
-```
 
 
