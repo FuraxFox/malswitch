@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FuraxFox/malswitch/internal/message"
-	"github.com/FuraxFox/malswitch/internal/search"
+	"github.com/FuraxFox/malswitch/internal/aiq"
+	"github.com/FuraxFox/malswitch/internal/aiq_message"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -34,8 +34,8 @@ type model struct {
 
 	communityUUID string
 	ServerURL     string
-	ClientKeys    message.PrivateKeySet
-	ServerContact message.MessageContact // Server's public key info
+	ClientKeys    aiq_message.PrivateKeySet
+	ServerContact aiq_message.MessageContact // Server's public key info
 
 }
 
@@ -53,32 +53,46 @@ func (m *model) submitSearch() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Build the IOCPayload based on the selected type
-	payload := search.SearchPayload{
-		Type: m.searchType,
+	// build SearchRequest
+	request := aiq.SearchRequest{
+		CommunityUUID: m.communityUUID,
 	}
+	request.Content.Type = m.searchType
 
 	// In a real app, this logic would involve input validation (e.g., checking if IP is valid)
 	switch m.searchType {
-	case search.IOC_TYPE_IP_LIST, search.IOC_TYPE_HASH_LIST:
+	case aiq.IOC_TYPE_IP_LIST:
 		// Split comma-separated string into a slice
 		items := strings.Split(inputValue, ",")
 		for i, item := range items {
 			items[i] = strings.TrimSpace(item)
 		}
-		if m.searchType == search.IOC_TYPE_IP_LIST {
-			payload.IPs = items
-		} else {
-			payload.Hashes = items
-		}
-	case search.IOC_TYPE_YARA_RULE, search.IOC_TYPE_TEXT:
-		payload.Text = inputValue
-	}
+		if m.searchType == aiq.IOC_TYPE_IP_LIST {
 
-	// Wrap payload in SearchRequest
-	request := search.SearchRequest{
-		CommunityUUID: m.communityUUID,
-		Content:       payload,
+			request.Content.IPs = items
+		}
+	case aiq.IOC_TYPE_HASH_LIST:
+		// Split comma-separated string into a slice
+		items := strings.Split(inputValue, ",")
+		for i, item := range items {
+			items[i] = strings.TrimSpace(item)
+		}
+		for _, hval := range items {
+			htype := "undefined"
+			switch len(hval) {
+			case 40:
+				htype = "md5"
+			case 64:
+				htype = "sha1"
+			case 128:
+				htype = "sha256"
+			default:
+				htype = "unknown"
+			}
+			request.Content.Hashes = append(request.Content.Hashes, aiq.HashEntry{Value: htype, Type: hval})
+		}
+	case aiq.IOC_TYPE_YARA_RULE, aiq.IOC_TYPE_TEXT:
+		request.Content.Text = inputValue
 	}
 
 	// Transition to loading state and start the network operation

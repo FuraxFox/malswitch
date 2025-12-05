@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 
-	"github.com/FuraxFox/malswitch/internal/message"
-	"github.com/FuraxFox/malswitch/internal/search"
+	"github.com/FuraxFox/malswitch/internal/aiq"
+	"github.com/FuraxFox/malswitch/internal/aiq_message"
 
 	"encoding/json"
 	"fmt"
@@ -21,7 +21,7 @@ var (
 	// Server's Ed25519 private key for signing outgoing responses
 	ServerSigningKey ed25519.PrivateKey
 	// The list of contacts the server trusts (used for signature verification and authorization)
-	Correspondents = []message.MessageContact{}
+	Correspondents = []aiq_message.MessageContact{}
 )
 
 // DecryptHandler handles incoming JSON messages, decrypts, and sends an encrypted response.
@@ -38,7 +38,7 @@ func DecryptHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decrypt the message (includes recipient verificaiton and cryptographic signature verification)
-	clearText, sender, err := message.ReceiveMessage(body, ServerDecryptionKey, Correspondents)
+	clearText, sender, err := aiq_message.ReceiveMessage(body, ServerDecryptionKey, Correspondents)
 	if err != nil {
 		log.Printf("Decryption failed: %v", err)
 		w.Header().Set("Content-Type", "application/json")
@@ -56,7 +56,7 @@ func DecryptHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Decrypted Message: %s\n", decryptedString)
 
 	var responseText string
-	request, err := search.DeserializeSearch(decryptedString)
+	request, err := aiq.DeserializeSearch(decryptedString)
 	if err != nil {
 		responseText = fmt.Sprintf("INVALID REQUEST: %v", err)
 	} else {
@@ -81,7 +81,7 @@ func main() {
 	clientPubKeyFiles := os.Args[2:]
 
 	// Load Server's Private Keys
-	privKeys, err := message.LoadPrivateKeys(serverPrivFile)
+	privKeys, err := aiq_message.LoadPrivateKeys(serverPrivFile)
 	if err != nil {
 		log.Fatalf("Error loading server private key: %v", err)
 	}
@@ -91,7 +91,7 @@ func main() {
 
 	// Load Client Public Keys for Signature Verification and Authorization
 	for _, clientPubKeyFile := range clientPubKeyFiles {
-		clientContact, err := message.LoadContactFromFile(clientPubKeyFile)
+		clientContact, err := aiq_message.LoadContactFromFile(clientPubKeyFile)
 		if err != nil {
 			log.Fatalf("Error loading client public key from %s: %v", clientPubKeyFile, err)
 		}

@@ -4,13 +4,13 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/FuraxFox/malswitch/internal/message"
+	"github.com/FuraxFox/malswitch/internal/aiq_message"
 )
 
-func RespondRequest(w http.ResponseWriter, r *http.Request, recipientContact message.MessageContact, content string) {
+func RespondRequest(w http.ResponseWriter, r *http.Request, recipientContact aiq_message.MessageContact, content string) {
 
 	// Encrypt response using server's signing key and client's public keys
-	responseMsg, err := message.GenerateMessage([]byte(content), ServerSigningKey, []message.MessageContact{recipientContact})
+	responseMsg, err := aiq_message.GenerateMessage([]byte(content), ServerSigningKey, []aiq_message.MessageContact{recipientContact})
 	if err != nil {
 		log.Printf("RESPONSE MESSAGE CREATION FAILED: %v", err)
 		http.Error(w, "Failed to encrypt response", http.StatusInternalServerError)

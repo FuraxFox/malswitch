@@ -1,4 +1,4 @@
-package search
+package aiq
 
 import (
 	"crypto/ed25519"
@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/FuraxFox/malswitch/internal/message"
+	"github.com/FuraxFox/malswitch/internal/aiq_message"
 )
 
 // communityContent is a temporary struct used to create a canonical, normalized
@@ -45,7 +45,7 @@ func (c *Community) normalizedContent() ([]byte, error) {
 // Sign generates an Ed25519 signature of the normalized community content
 // using the provided private key, and updates the Community's Signature field.
 // The private key must belong to the Community's Owner.
-func (c *Community) Sign(privKeys message.PrivateKeySet) error {
+func (c *Community) Sign(privKeys aiq_message.PrivateKeySet) error {
 	// 1. Get the normalized content bytes
 	content, err := c.normalizedContent()
 	if err != nil {

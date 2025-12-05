@@ -9,7 +9,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/FuraxFox/malswitch/internal/search"
+	"github.com/FuraxFox/malswitch/internal/aiq"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -49,18 +49,18 @@ const listHeight = 12
 
 // Map from option type to the prompt text
 var searchPrompts = map[string]string{
-	search.IOC_TYPE_IP_LIST:   "Enter IP addresses (comma-separated):",
-	search.IOC_TYPE_HASH_LIST: "Enter Hashes (MD5/SHA, comma-separated):",
-	search.IOC_TYPE_YARA_RULE: "Enter Yara Rule:",
-	search.IOC_TYPE_TEXT:      "Enter Full Text Search String:",
+	aiq.IOC_TYPE_IP_LIST:   "Enter IP addresses (comma-separated):",
+	aiq.IOC_TYPE_HASH_LIST: "Enter Hashes (MD5/SHA, comma-separated):",
+	aiq.IOC_TYPE_YARA_RULE: "Enter Yara Rule:",
+	aiq.IOC_TYPE_TEXT:      "Enter Full Text Search String:",
 }
 
 // Search options available to the user
 var searchOptions = []list.Item{
-	SearchOption(search.IOC_TYPE_IP_LIST),
-	SearchOption(search.IOC_TYPE_HASH_LIST),
-	SearchOption(search.IOC_TYPE_YARA_RULE),
-	SearchOption(search.IOC_TYPE_TEXT),
+	SearchOption(aiq.IOC_TYPE_IP_LIST),
+	SearchOption(aiq.IOC_TYPE_HASH_LIST),
+	SearchOption(aiq.IOC_TYPE_YARA_RULE),
+	SearchOption(aiq.IOC_TYPE_TEXT),
 }
 
 type searchOptionDelegate struct{}
@@ -264,7 +264,7 @@ type sendResultMsg struct {
 }
 
 // Command to start the asynchronous network operation
-func (m *model) sendRequestCmd(request search.SearchRequest) tea.Cmd {
+func (m *model) sendRequestCmd(request aiq.SearchRequest) tea.Cmd {
 	return func() tea.Msg {
 
 		data, err := request.Serialize()

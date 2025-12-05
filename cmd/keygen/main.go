@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/FuraxFox/malswitch/internal/message"
+	"github.com/FuraxFox/malswitch/internal/aiq_message"
 )
 
 // PrivateKeySetJSON defines the structure for the JSON file containing private keys.
@@ -27,7 +27,7 @@ func main() {
 	contactName := os.Args[1]
 
 	// 1. Generate all keys using the library function
-	pubKeys, privKeys, err := message.GenerateKeySets()
+	pubKeys, privKeys, err := aiq_message.GenerateKeySets()
 	if err != nil {
 		log.Fatalf("Fatal key generation error: %v", err)
 	}

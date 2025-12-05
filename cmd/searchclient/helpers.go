@@ -10,7 +10,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/FuraxFox/malswitch/internal/message"
+	"github.com/FuraxFox/malswitch/internal/aiq_message"
 )
 
 // initKeysFromFile loads keys from the provided file paths, simulating the original logic.
@@ -18,14 +18,14 @@ func (m *model) initKeysFromFile(clientPrivFile, serverPubKeyFile string) error 
 	var err error
 
 	// Load Client's Full Private Key Set (sender)
-	privKeys, err := message.LoadPrivateKeys(clientPrivFile)
+	privKeys, err := aiq_message.LoadPrivateKeys(clientPrivFile)
 	if err != nil {
 		return fmt.Errorf("error loading client private key from %s: %w", clientPrivFile, err)
 	}
 	m.ClientKeys = privKeys
 
 	// Load Server's Public Keys (recipient)
-	m.ServerContact, err = message.LoadContactFromFile(serverPubKeyFile)
+	m.ServerContact, err = aiq_message.LoadContactFromFile(serverPubKeyFile)
 	if err != nil {
 		return fmt.Errorf("error loading server public key from %s: %w", serverPubKeyFile, err)
 	}
@@ -37,11 +37,11 @@ func (m *model) initKeysFromFile(clientPrivFile, serverPubKeyFile string) error 
 
 // sendEncryptedMessage encrypts the clear text (the signed JSON payload), posts it, and decrypts the response.
 // The result is handled asynchronously by the TUI.
-func sendEncryptedMessage(serverURL string, clientKeys *message.PrivateKeySet, serverContact *message.MessageContact, clearText string) (string, error) {
+func sendEncryptedMessage(serverURL string, clientKeys *aiq_message.PrivateKeySet, serverContact *aiq_message.MessageContact, clearText string) (string, error) {
 
 	// Acceptable contacts, containing only the server informations
-	correspondents := []message.MessageContact{*serverContact}
-	jsonPayload, err := message.GenerateMessage([]byte(clearText), clientKeys.SigningKey, correspondents)
+	correspondents := []aiq_message.MessageContact{*serverContact}
+	jsonPayload, err := aiq_message.GenerateMessage([]byte(clearText), clientKeys.SigningKey, correspondents)
 	if err != nil {
 		return "", fmt.Errorf("message generation failed: %w", err)
 	}
@@ -63,7 +63,7 @@ func sendEncryptedMessage(serverURL string, clientKeys *message.PrivateKeySet, s
 	}
 
 	// Decode, verify and decrypt response (since only the server is accepted we do not check the sender)
-	ack, _, err := message.ReceiveMessage(responseBody, clientKeys.DecryptionKey, correspondents)
+	ack, _, err := aiq_message.ReceiveMessage(responseBody, clientKeys.DecryptionKey, correspondents)
 	if err != nil {
 		return "", fmt.Errorf("error on acknowleded: %v", err)
 	}

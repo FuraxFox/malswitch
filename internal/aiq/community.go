@@ -1,16 +1,16 @@
-package search
+package aiq
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
 
-	"github.com/FuraxFox/malswitch/internal/message"
+	"github.com/FuraxFox/malswitch/internal/aiq_message"
 )
 
 type CommunityMember struct {
-	Endpoint string               `json:"endpoint"`
-	Keys     message.PublicKeySet `json:"keys"`
+	Endpoint string                   `json:"endpoint"`
+	Keys     aiq_message.PublicKeySet `json:"keys"`
 }
 
 type Community struct {
@@ -22,7 +22,7 @@ type Community struct {
 	Owner       CommunityMember   `json:"owner"`
 }
 
-func (c *Community) AddMember(endpoint string, keys message.PublicKeySet) {
+func (c *Community) AddMember(endpoint string, keys aiq_message.PublicKeySet) {
 	m := CommunityMember{
 		Endpoint: endpoint,
 		Keys:     keys,

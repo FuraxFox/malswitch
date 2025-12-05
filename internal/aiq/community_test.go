@@ -1,4 +1,4 @@
-package search
+package aiq
 
 import (
 	"bytes"
@@ -9,19 +9,19 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/FuraxFox/malswitch/internal/message"
+	"github.com/FuraxFox/malswitch/internal/aiq_message"
 )
 
 // Helper function to generate a new Ed25519 key pair and format it
 // into the PublicKeySet and PrivateKeySet structs for testing.
-func generateKeys(t *testing.T) (message.PublicKeySet, message.PrivateKeySet) {
+func generateKeys(t *testing.T) (aiq_message.PublicKeySet, aiq_message.PrivateKeySet) {
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		t.Fatalf("Failed to generate Ed25519 keys: %v", err)
 	}
 
 	// Create PrivateKeySet
-	privSet := message.PrivateKeySet{
+	privSet := aiq_message.PrivateKeySet{
 		DecryptionKey: make([]byte, 32), // Placeholder X25519 Decryption Key
 		SigningKey:    priv,
 	}
@@ -30,7 +30,7 @@ func generateKeys(t *testing.T) (message.PublicKeySet, message.PrivateKeySet) {
 	pubB64 := base64.StdEncoding.EncodeToString(pub)
 
 	// Create PublicKeySet
-	pubSet := message.PublicKeySet{
+	pubSet := aiq_message.PublicKeySet{
 		EncryptionKey: pubB64, // Using the same key for both fields for simplicity in testing
 		SignatureKey:  pubB64,
 	}
