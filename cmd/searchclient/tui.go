@@ -264,7 +264,7 @@ type sendResultMsg struct {
 }
 
 // Command to start the asynchronous network operation
-func (m *model) sendRequestCmd(request aiq.SearchRequest) tea.Cmd {
+func (m *model) sendRequestCmd(request aiq.RequestEnveloppe) tea.Cmd {
 	return func() tea.Msg {
 
 		data, err := request.Serialize()

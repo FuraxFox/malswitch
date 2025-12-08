@@ -54,10 +54,10 @@ func (m *model) submitSearch() (tea.Model, tea.Cmd) {
 	}
 
 	// build SearchRequest
-	request := aiq.SearchRequest{
+	request := aiq.RequestEnveloppe{
 		CommunityUUID: m.communityUUID,
 	}
-	request.Content.Type = m.searchType
+	request.SubmitRequest.Type = m.searchType
 
 	// In a real app, this logic would involve input validation (e.g., checking if IP is valid)
 	switch m.searchType {
@@ -69,7 +69,7 @@ func (m *model) submitSearch() (tea.Model, tea.Cmd) {
 		}
 		if m.searchType == aiq.IOC_TYPE_IP_LIST {
 
-			request.Content.IPs = items
+			request.SubmitRequest.IPs = items
 		}
 	case aiq.IOC_TYPE_HASH_LIST:
 		// Split comma-separated string into a slice
@@ -89,10 +89,10 @@ func (m *model) submitSearch() (tea.Model, tea.Cmd) {
 			default:
 				htype = "unknown"
 			}
-			request.Content.Hashes = append(request.Content.Hashes, aiq.HashEntry{Type: htype, Value: hval})
+			request.SubmitRequest.Hashes = append(request.SubmitRequest.Hashes, aiq.HashEntry{Type: htype, Value: hval})
 		}
 	case aiq.IOC_TYPE_YARA_RULE, aiq.IOC_TYPE_TEXT:
-		request.Content.Text = inputValue
+		request.SubmitRequest.Text = inputValue
 	}
 
 	// Transition to loading state and start the network operation

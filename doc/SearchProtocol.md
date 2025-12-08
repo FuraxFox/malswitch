@@ -105,7 +105,7 @@ Commnity member                                     Community Owner
 All requests are serialized as JSON.
 The request JSON is transported in a aiq-message.
 
-A client submit a `SubmitSearch` request to a *SearchHead*.
+A client submit a `SubmitSearchRequest` request to a *SearchHead*.
 The *SearchHead* answers with a `SearchAccepted` message if the search 
 was accepted, or an `Error` message otherwise.
 
@@ -117,22 +117,19 @@ type HashEntry struct {
 }
 
 
-type SearchRequest struct {
-	CommunityUUID string `json:"community_uuid"`
-	Content       struct {
-		Type     string      `json:"type"`                // e.g., "IP_LIST", "HASH_LIST", "YARA_RULE", "GENERIC_STRING"
-		IPs      []string    `json:"ips,omitempty"`       // Used for IP_LIST
-		Hashes   []HashEntry `json:"hashes,omitempty"`    // Used for HASH_LIST
-		YaraRule string      `json:"yara_rule,omitempty"` // Used for YARA_RULE
-		Text     string      `json:"text,omitempty"`      // Used for IOC_TYPE_TEXT (or for simple text searches)
-	} `json:"content"`
+type SearchSubmitRequest struct {
+	Type     string      `json:"type"`                // e.g., "IP_LIST", "HASH_LIST", "YARA_RULE", "GENERIC_STRING"
+	IPs      []string    `json:"ips,omitempty"`       // Used for IP_LIST
+	Hashes   []HashEntry `json:"hashes,omitempty"`    // Used for HASH_LIST
+	YaraRule string      `json:"yara_rule,omitempty"` // Used for YARA_RULE
+	Text     string      `json:"text,omitempty"`      // Used for IOC_TYPE_TEXT (or for simple text searches)
 }
 ```
 
 
-`SearchReference` is defined as follow:
+`SearchReferenceRequest` is defined as follow:
 ```go
-type SearchReference struct {
+type SearchReferenceRequest struct {
     SearchUUID string `json:"search_uuid"`
     Action     string `json:"search_action"`
 }
@@ -158,7 +155,7 @@ type SearchMatch struct {
     ContenType  string `json:"content_type,omitempty"`
 }
 
-type SearchResult struct {
+type SearchResultRequest struct {
     SearchUUID   string        `json:"search_uuid"`
     Status       string        `json:"status"`
     MatchesCount int           `json:"matches_count", omitempty"`
@@ -169,19 +166,19 @@ type SearchResult struct {
 ### Search request submission
 
 ```
-Client                                             SearchHead
---------------------                               ----------------- 
-<generate request>  =========(SearchSubmit)=======> <accept search>
-<enqueue ref>       <=(SearchReference(accepted))== <enqueue search>
+Client                                                     SearchHead
+--------------------                                       ----------------- 
+<generate request>  =========(SearchSubmitRequest)=======> <accept search>
+<enqueue ref>       <=(SearchReferenceRequest(accepted))== <enqueue search>
 ```
 
 ### Search result interrogation
 
 ```
-Client                                               Searchhead
----------------------                                ----------------- 
-<check result>        ===(SearchReference(pull))===> <check queue>
-<process result>      <=======(SearchResult)======== <generate result>
+Client                                                       Searchhead
+---------------------                                        ----------------- 
+<check result>        ===(SearchReferenceRequest(pull))===> <check queue>
+<process result>      <=======(SearchResultRequest)======== <generate result>
 ```
 
 

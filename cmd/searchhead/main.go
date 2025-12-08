@@ -56,7 +56,7 @@ func DecryptHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Decrypted Message: %s\n", decryptedString)
 
 	var responseText string
-	request, err := aiq.DeserializeSearch(decryptedString)
+	request, err := aiq.DeserializeRequest(decryptedString)
 	if err != nil {
 		responseText = fmt.Sprintf("INVALID REQUEST: %v", err)
 	} else {
