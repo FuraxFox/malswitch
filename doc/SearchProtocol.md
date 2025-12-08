@@ -109,6 +109,27 @@ A client submit a `SubmitSearch` request to a *SearchHead*.
 The *SearchHead* answers with a `SearchAccepted` message if the search 
 was accepted, or an `Error` message otherwise.
 
+```go
+
+type HashEntry struct {
+	Value string `json:"value"` // The hash string (e.g., a0eebc99da0)
+	Type  string `json:"type"`  // e.g., "MD5", "SHA256"
+}
+
+
+type SearchRequest struct {
+	CommunityUUID string `json:"community_uuid"`
+	Content       struct {
+		Type     string      `json:"type"`                // e.g., "IP_LIST", "HASH_LIST", "YARA_RULE", "GENERIC_STRING"
+		IPs      []string    `json:"ips,omitempty"`       // Used for IP_LIST
+		Hashes   []HashEntry `json:"hashes,omitempty"`    // Used for HASH_LIST
+		YaraRule string      `json:"yara_rule,omitempty"` // Used for YARA_RULE
+		Text     string      `json:"text,omitempty"`      // Used for IOC_TYPE_TEXT (or for simple text searches)
+	} `json:"content"`
+}
+```
+
+
 `SearchReference` is defined as follow:
 ```go
 type SearchReference struct {

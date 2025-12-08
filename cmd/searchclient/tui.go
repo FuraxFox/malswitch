@@ -92,7 +92,7 @@ func initialModel(serverURL string, uuid string, clientPrivFile string, serverPu
 	ti.CharLimit = 200
 	ti.Width = 78
 
-	const defaultListWidth = 20
+	const defaultListWidth = 60
 
 	l := list.New(searchOptions, searchOptionDelegate{}, defaultListWidth, listHeight)
 	l.Title = "Select Search Type:"

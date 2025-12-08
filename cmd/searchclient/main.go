@@ -89,7 +89,7 @@ func (m *model) submitSearch() (tea.Model, tea.Cmd) {
 			default:
 				htype = "unknown"
 			}
-			request.Content.Hashes = append(request.Content.Hashes, aiq.HashEntry{Value: htype, Type: hval})
+			request.Content.Hashes = append(request.Content.Hashes, aiq.HashEntry{Type: htype, Value: hval})
 		}
 	case aiq.IOC_TYPE_YARA_RULE, aiq.IOC_TYPE_TEXT:
 		request.Content.Text = inputValue

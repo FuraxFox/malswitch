@@ -26,7 +26,8 @@ type CatalogEntry struct {
 
 func CatalogBrowserRequestHandler(w http.ResponseWriter, r *http.Request, ctx *CatalogBrowserContext) {
 
-	if r.Method == "OPTIONS" {
+	switch r.Method {
+	case "OPTIONS":
 		// preflight request
 		headers := w.Header()
 		headers.Add("Access-Control-Allow-Origin", "*")
@@ -37,11 +38,11 @@ func CatalogBrowserRequestHandler(w http.ResponseWriter, r *http.Request, ctx *C
 		headers.Add("Access-Control-Allow-Methods", "GET, POST,OPTIONS")
 		w.WriteHeader(http.StatusOK)
 		return
-	} else if r.Method == "GET" {
+	case "GET":
 		log.Debug("GET request received for catalog browser")
-	} else if r.Method == "POST" {
+	case "POST":
 		log.Debug("POST request received for catalog browser")
-	} else {
+	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -121,7 +122,8 @@ func CatalogBrowserRequestHandler(w http.ResponseWriter, r *http.Request, ctx *C
 }
 
 func DownloadRequestHandler(w http.ResponseWriter, r *http.Request, ctx *CatalogBrowserContext) {
-	if r.Method == "OPTIONS" {
+	switch r.Method {
+	case "OPTIONS":
 		// preflight request
 		headers := w.Header()
 		headers.Add("Access-Control-Allow-Origin", "*")
@@ -131,11 +133,11 @@ func DownloadRequestHandler(w http.ResponseWriter, r *http.Request, ctx *Catalog
 		headers.Add("Access-Control-Allow-Headers", "Content-Type, Origin, Accept, token")
 		headers.Add("Access-Control-Allow-Methods", "GET, POST,OPTIONS")
 		w.WriteHeader(http.StatusOK)
-	} else if r.Method == "GET" {
+	case "GET":
 		log.Debug("GET request received for sample download")
-	} else if r.Method == "POST" {
+	case "POST":
 		log.Debug("POST request received for sample download")
-	} else {
+	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}

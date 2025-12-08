@@ -35,29 +35,23 @@ type SearchRequest struct {
 	} `json:"content"`
 }
 
-// structure to ask for a search result
-type ResultPullRequest struct {
-	CommunityUUID string `json:"community_uuid"`
-	SearchID      string `json:"search_uuid"`
+type SearchReference struct {
+	SearchUUID string `json:"search_uuid"`
+	Action     string `json:"search_action"`
 }
 
-// structure to respond when an error is encountered server side
-type ErrorResponse struct {
-	CommunityUUID string `json:"community_uuid"`
-	Message       string `json:"message"`
+type SearchMatch struct {
+	MatchUUID  string `json:"match_uuid"`
+	Reference  string `json:"reference"`
+	ContentURL string `json:"content_uri,omitempty"`
+	ContenType string `json:"content_type,omitempty"`
 }
 
-// structure to respond to a search submission
-type SearchRequestAcceptedResponse struct {
-	CommunityUUID string `json:"community_uuid"`
-	SearchID      string `json:"search_uuid"`
-}
-
-// structure to respond to a search submission
-type SearchRequestStatusResponse struct {
-	CommunityUUID string `json:"community_uuid"`
-	SearchID      string `json:"search_uuid"`
-	Status        string `json:"search_status"`
+type SearchResult struct {
+	SearchUUID   string        `json:"search_uuid"`
+	Status       string        `json:"status"`
+	MatchesCount int           `json:"matches_count,omitempty"`
+	Matches      []SearchMatch `json:"matches,omitempty"`
 }
 
 // Serialize
