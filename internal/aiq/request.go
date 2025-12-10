@@ -4,6 +4,12 @@ They are encrypted before
 */
 package aiq
 
+// TODO add Community requests
+
+type ErrorRequest struct {
+	Message string `json:"message"`
+}
+
 type SearchSubmitRequest struct {
 	Type     string      `json:"type"`                // e.g., "IP_LIST", "HASH_LIST", "YARA_RULE", "GENERIC_STRING"
 	IPs      []string    `json:"ips,omitempty"`       // Used for IP_LIST
@@ -22,12 +28,12 @@ type SearchResultRequest struct {
 
 type SearchReferenceRequest struct {
 	SearchUUID string `json:"search_uuid"`
-	Action     string `json:"search_action"`
 }
 
 type RequestEnveloppe struct {
 	CommunityUUID   string                 `json:"community_uuid"`
 	Type            RequestType            `json:"request_type"`
+	Error           ErrorRequest           `json:"error"`
 	SubmitRequest   SearchSubmitRequest    `json:"submit_request,omitempty"`
 	ResultRequest   SearchResultRequest    `json:"result_request,omitempty"`
 	SearchReference SearchReferenceRequest `json:"search_reference_request"`

@@ -42,37 +42,75 @@ func (s *RequestEnveloppe) String() string {
 	return string(buff)
 }
 
-func NewSubmitSearchHashesRequest(hashes []HashEntry) (*RequestEnveloppe, error) {
+func NewSubmitSearchHashesRequest(community string, hashes []HashEntry) (*RequestEnveloppe, error) {
+	enveloppe := RequestEnveloppe{
+		CommunityUUID: community,
+		Type:          SearchSubmitRequestType,
+	}
 	// TODO
-	return nil, nil
+	return &enveloppe, nil
 }
 
-func NewSubmitSearchIPsRequest(addresses []string) (*RequestEnveloppe, error) {
+func NewSubmitSearchIPsRequest(community string, addresses []string) (*RequestEnveloppe, error) {
+	enveloppe := RequestEnveloppe{
+		CommunityUUID: community,
+		Type:          SearchSubmitRequestType,
+	}
 	// TODO
-	return nil, nil
+	return &enveloppe, nil
 }
 
-func NewSubmitSearchYaraRequest(rule string) (*RequestEnveloppe, error) {
+func NewSubmitSearchYaraRequest(community string, rule string) (*RequestEnveloppe, error) {
+	enveloppe := RequestEnveloppe{
+		CommunityUUID: community,
+		Type:          SearchSubmitRequestType,
+	}
 	// TODO
-	return nil, nil
+	return &enveloppe, nil
 }
 
-func NewSubmitSearchTextRequest(words []string) (*RequestEnveloppe, error) {
+func NewSubmitSearchTextRequest(community string, words []string) (*RequestEnveloppe, error) {
+	enveloppe := RequestEnveloppe{
+		CommunityUUID: community,
+		Type:          SearchSubmitRequestType,
+	}
 	// TODO
-	return nil, nil
+	return &enveloppe, nil
 }
 
-func NewSubmitResultRequest(uuid string, results []SearchMatch) (*RequestEnveloppe, error) {
+func NewSubmitResultRequest(community string, searchUUID string, results []SearchMatch) (*RequestEnveloppe, error) {
+	enveloppe := RequestEnveloppe{
+		CommunityUUID: community,
+		Type:          SearchResultRequestType,
+	}
 	// TODO
-	return nil, nil
+	return &enveloppe, nil
 }
 
-func NewSearchAcceptedRequest(uiid string) (*RequestEnveloppe, error) {
-	// TODO
-	return nil, nil
+func NewSearchAcceptedRequest(community string, searchUUID string) (*RequestEnveloppe, error) {
+	enveloppe := RequestEnveloppe{
+		CommunityUUID: community,
+		Type:          SearchAcceptedRequestType,
+	}
+	enveloppe.SearchReference.SearchUUID = searchUUID
+	return &enveloppe, nil
 }
 
-func NewSearchPullRequest(uuid string) (*RequestEnveloppe, error) {
+func NewSearchPullRequest(community string, searchUUID string) (*RequestEnveloppe, error) {
+	enveloppe := RequestEnveloppe{
+		CommunityUUID: community,
+		Type:          SearchResultPullRequestType,
+	}
+	enveloppe.SearchReference.SearchUUID = searchUUID
+	return &enveloppe, nil
+}
+
+func NewErrorRequest(community string, message string) (*RequestEnveloppe, error) {
+	enveloppe := RequestEnveloppe{
+		CommunityUUID: community,
+		Type:          ErrorRequestType,
+	}
+	enveloppe.Error.Message = message
 	// TODO
-	return nil, nil
+	return &enveloppe, nil
 }
