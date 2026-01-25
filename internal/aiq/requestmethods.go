@@ -51,6 +51,44 @@ func NewSubmitSearchHashesRequest(community string, hashes []HashEntry) (*Reques
 	return &enveloppe, nil
 }
 
+func NewCommunityUpdateRequest(community Community) (*RequestEnveloppe, error) {
+	enveloppe := RequestEnveloppe{
+		CommunityUUID: community.UID,
+		Type:          CommunityUpdateRequestType,
+		CommunityUpdate: &CommunityUpdateRequest{
+			Community: community,
+		},
+	}
+	return &enveloppe, nil
+}
+
+func NewCommunityUpdateAcceptedRequest(communityUUID string) (*RequestEnveloppe, error) {
+	enveloppe := RequestEnveloppe{
+		CommunityUUID: communityUUID,
+		Type:          CommunityUpdateAcceptedRequestType,
+	}
+	return &enveloppe, nil
+}
+
+func NewCommunitySubscribeRequest(communityUUID string, member CommunityMember) (*RequestEnveloppe, error) {
+	enveloppe := RequestEnveloppe{
+		CommunityUUID: communityUUID,
+		Type:          CommunitySubscribeRequestType,
+		CommunitySubscribe: &CommunitySubscribeRequest{
+			Member: member,
+		},
+	}
+	return &enveloppe, nil
+}
+
+func NewCommunitySubscriptionQueuedRequest(communityUUID string) (*RequestEnveloppe, error) {
+	enveloppe := RequestEnveloppe{
+		CommunityUUID: communityUUID,
+		Type:          CommunitySubscriptionQueuedRequestType,
+	}
+	return &enveloppe, nil
+}
+
 func NewSubmitSearchIPsRequest(community string, addresses []string) (*RequestEnveloppe, error) {
 	enveloppe := RequestEnveloppe{
 		CommunityUUID: community,
@@ -91,8 +129,10 @@ func NewSearchAcceptedRequest(community string, searchUUID string) (*RequestEnve
 	enveloppe := RequestEnveloppe{
 		CommunityUUID: community,
 		Type:          SearchAcceptedRequestType,
+		SearchReference: &SearchReferenceRequest{
+			SearchUUID: searchUUID,
+		},
 	}
-	enveloppe.SearchReference.SearchUUID = searchUUID
 	return &enveloppe, nil
 }
 
@@ -100,8 +140,10 @@ func NewSearchPullRequest(community string, searchUUID string) (*RequestEnvelopp
 	enveloppe := RequestEnveloppe{
 		CommunityUUID: community,
 		Type:          SearchResultPullRequestType,
+		SearchReference: &SearchReferenceRequest{
+			SearchUUID: searchUUID,
+		},
 	}
-	enveloppe.SearchReference.SearchUUID = searchUUID
 	return &enveloppe, nil
 }
 
@@ -109,8 +151,9 @@ func NewErrorRequest(community string, message string) (*RequestEnveloppe, error
 	enveloppe := RequestEnveloppe{
 		CommunityUUID: community,
 		Type:          ErrorRequestType,
+		Error: &ErrorRequest{
+			Message: message,
+		},
 	}
-	enveloppe.Error.Message = message
-	// TODO
 	return &enveloppe, nil
 }

@@ -3,6 +3,7 @@
 package aiq_message
 
 import (
+	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
 )
@@ -37,7 +38,7 @@ func ReceiveMessage(rawJSON []byte, decryptionKey []byte, correspondents []Messa
 // Generate a JSON encoded encrypted and signed message
 func GenerateMessage(clearText []byte, signingKey []byte, correspondents []MessageContact) ([]byte, error) {
 	// Encrypt the outgoing message
-	encryptedMsg, err := encryptMessage(clearText, signingKey, correspondents)
+	encryptedMsg, err := encryptMessage(clearText, ed25519.PrivateKey(signingKey), correspondents)
 	if err != nil {
 		return nil, fmt.Errorf("encryption failed: %w", err)
 	}

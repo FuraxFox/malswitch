@@ -41,5 +41,8 @@ const (
 	CommunityRefreshRequestType      = "community-refresh-request"
 	CommunityResignRequestType       = "community-resign-request"
 	CommunityUpdateRequestType       = "community-update-request"
+	CommunityUpdateAcceptedRequestType = "community-update-accepted"
+	CommunitySubscribeRequestType    = "community-subscribe-request"
+	CommunitySubscriptionQueuedRequestType = "community-subscription-queued"
 	CommunityChangeResultRequestType = "community-change-request"
 )

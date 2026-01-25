@@ -22,10 +22,16 @@ func TestSecureMessenger(t *testing.T) {
 	t.Logf("Sender Ed25519 Public: %s", hex.EncodeToString(senderEdPub))
 	t.Logf("R1 X25519 Public (Encrypt): %s", hex.EncodeToString(r1XPub))
 
+	senderContact := MessageContact{
+		SignatureKey: senderEdPub,
+	}
+
 	recipients := []MessageContact{
 		{EncryptionKey: r1XPub, SignatureKey: r1EdPub},
 		{EncryptionKey: r2XPub, SignatureKey: r2EdPub},
 	}
+
+	correspondents := append(recipients, senderContact)
 
 	plaintext := []byte("This is the secret message from the sender. The current timestamp is " + strconv.FormatInt(time.Now().UnixNano(), 10))
 	t.Logf("\nOriginal Message: %s", string(plaintext))
@@ -41,7 +47,7 @@ func TestSecureMessenger(t *testing.T) {
 
 		// 3. Decryption by Recipient 1
 		t.Run("Decrypt_by_R1", func(t *testing.T) {
-			clearTextR1, err := decryptMessage(encryptedMsg, r1XPriv, recipients)
+			clearTextR1, err := decryptMessage(encryptedMsg, r1XPriv, correspondents)
 			if err != nil {
 				t.Fatalf("Decryption by R1 failed: %v", err)
 			}
@@ -72,7 +78,7 @@ func TestSecureMessenger(t *testing.T) {
 			tamperedMsg.Data = string(runes)
 		}
 
-		_, err = decryptMessage(tamperedMsg, r1XPriv, recipients)
+		_, err = decryptMessage(tamperedMsg, r1XPriv, correspondents)
 		expectedError := "signature verification failed: message has been tampered with or is from an unauthorized sender"
 		if err == nil || err.Error() != expectedError {
 			t.Errorf("Security failure: Tampered Data should invalidate signature.\nExpected: %s\nGot: %v", expectedError, err)
@@ -103,7 +109,7 @@ func TestSecureMessenger(t *testing.T) {
 			}
 		}
 
-		_, err = decryptMessage(tamperedMsg, r1XPriv, recipients)
+		_, err = decryptMessage(tamperedMsg, r1XPriv, correspondents)
 		expectedError := "signature verification failed: message has been tampered with or is from an unauthorized sender"
 		if err == nil || err.Error() != expectedError {
 			t.Errorf("Security failure: Tampered Wrapped Key should invalidate signature.\nExpected: %s\nGot: %v", expectedError, err)
@@ -122,7 +128,7 @@ func TestSecureMessenger(t *testing.T) {
 		_, wrongEdPriv, _ := GenerateKeys()
 		wrongXPriv := Ed25519PrivateKeyToCurve25519(wrongEdPriv)
 
-		_, err = decryptMessage(encryptedMsg, wrongXPriv, recipients)
+		_, err = decryptMessage(encryptedMsg, wrongXPriv, correspondents)
 		expectedError := "key unwrapping failed for all wrapped keys (shared secret mismatch or key data corruption)"
 		if err == nil || err.Error() != expectedError {
 			t.Errorf("Security failure: Decrypted message with wrong key or returned wrong error.\nExpected: %s\nGot: %v", expectedError, err)

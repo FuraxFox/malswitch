@@ -225,3 +225,120 @@ func TestLoadFailure(t *testing.T) {
 		t.Error("Expected signature verification error after content tampering during Load, got nil")
 	}
 }
+
+func TestCommunityMessages(t *testing.T) {
+	// 1. Setup keys
+	ownerPub, ownerPriv, _ := aiq_message.GenerateKeySets()
+	memberPub, memberPriv, _ := aiq_message.GenerateKeySets()
+
+	decode := func(s string) []byte {
+		b, _ := base64.StdEncoding.DecodeString(s)
+		return b
+	}
+
+	ownerContact := aiq_message.MessageContact{
+		Endpoint:      "https://owner.com",
+		EncryptionKey: decode(ownerPub.EncryptionKey),
+		SignatureKey:  decode(ownerPub.SignatureKey),
+	}
+	memberContact := aiq_message.MessageContact{
+		Endpoint:      "https://member.com",
+		EncryptionKey: decode(memberPub.EncryptionKey),
+		SignatureKey:  decode(memberPub.SignatureKey),
+	}
+
+	// 2. Create a community and save it to file
+	tmpDir := t.TempDir()
+	communityFile := filepath.Join(tmpDir, "community.json")
+	community := Community{
+		UID: "comm-1",
+		Owner: CommunityMember{
+			Endpoint: "https://owner.com",
+			Keys:     ownerPub,
+		},
+	}
+	if err := community.Sign(ownerPriv); err != nil {
+		t.Fatalf("Sign failed: %v", err)
+	}
+	if err := community.Save(communityFile); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	// 3. Test GenerateCommunityUpdate
+	updateMsg, err := GenerateCommunityUpdate(communityFile, ownerPriv.SigningKey, []aiq_message.MessageContact{memberContact})
+	if err != nil {
+		t.Fatalf("GenerateCommunityUpdate failed: %v", err)
+	}
+
+	// 4. Test ReceiveCommunityUpdate
+	localUpdateFile := filepath.Join(tmpDir, "community_updated.json")
+	ackMsg, err := ReceiveCommunityUpdate(updateMsg, memberPriv.DecryptionKey, memberPriv.SigningKey, []aiq_message.MessageContact{ownerContact}, localUpdateFile)
+	if err != nil {
+		t.Fatalf("ReceiveCommunityUpdate failed: %v", err)
+	}
+
+	// Verify file was saved
+	if _, err := os.Stat(localUpdateFile); os.IsNotExist(err) {
+		t.Error("Local community file was not created")
+	}
+
+	// Verify ack message
+	payload, _, err := aiq_message.ReceiveMessage(ackMsg, ownerPriv.DecryptionKey, []aiq_message.MessageContact{memberContact})
+	if err != nil {
+		t.Fatalf("Failed to receive ack message: %v", err)
+	}
+	envelope, err := DeserializeRequest(payload)
+	if err != nil {
+		t.Fatalf("Failed to deserialize ack request: %v", err)
+	}
+	if envelope.Type != CommunityUpdateAcceptedRequestType {
+		t.Errorf("Expected ack type %s, got %s", CommunityUpdateAcceptedRequestType, envelope.Type)
+	}
+
+	// 5. Test GenerateCommunitySubscribe
+	memberInfo := CommunityMember{Endpoint: "https://member.com", Keys: memberPub}
+	subMsg, err := GenerateCommunitySubscribe("comm-1", memberInfo, memberPriv.SigningKey, ownerContact)
+	if err != nil {
+		t.Fatalf("GenerateCommunitySubscribe failed: %v", err)
+	}
+
+	// 6. Test ReceiveCommunitySubscribe
+	receivedMember, err := ReceiveCommunitySubscribe(subMsg, ownerPriv.DecryptionKey, []aiq_message.MessageContact{memberContact})
+	if err != nil {
+		t.Fatalf("ReceiveCommunitySubscribe failed: %v", err)
+	}
+	if receivedMember.Endpoint != memberInfo.Endpoint {
+		t.Errorf("Received member endpoint mismatch: got %s, want %s", receivedMember.Endpoint, memberInfo.Endpoint)
+	}
+}
+
+func TestCommunitySubscriptionUnknownMember(t *testing.T) {
+	ownerPub, ownerPriv, _ := aiq_message.GenerateKeySets()
+	memberPub, memberPriv, _ := aiq_message.GenerateKeySets()
+
+	decode := func(s string) []byte {
+		b, _ := base64.StdEncoding.DecodeString(s)
+		return b
+	}
+
+	ownerContact := aiq_message.MessageContact{
+		Endpoint:      "https://owner.com",
+		EncryptionKey: decode(ownerPub.EncryptionKey),
+		SignatureKey:  decode(ownerPub.SignatureKey),
+	}
+
+	memberInfo := CommunityMember{Endpoint: "https://member.com", Keys: memberPub}
+	subMsg, err := GenerateCommunitySubscribe("comm-1", memberInfo, memberPriv.SigningKey, ownerContact)
+	if err != nil {
+		t.Fatalf("GenerateCommunitySubscribe failed: %v", err)
+	}
+
+	// Receive with EMPTY correspondents list (unknown member)
+	receivedMember, err := ReceiveCommunitySubscribe(subMsg, ownerPriv.DecryptionKey, []aiq_message.MessageContact{})
+	if err != nil {
+		t.Fatalf("ReceiveCommunitySubscribe with unknown member failed: %v", err)
+	}
+	if receivedMember.Endpoint != memberInfo.Endpoint {
+		t.Errorf("Received member endpoint mismatch: got %s, want %s", receivedMember.Endpoint, memberInfo.Endpoint)
+	}
+}

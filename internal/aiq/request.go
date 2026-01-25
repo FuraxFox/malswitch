@@ -10,6 +10,14 @@ type ErrorRequest struct {
 	Message string `json:"message"`
 }
 
+type CommunityUpdateRequest struct {
+	Community Community `json:"community"`
+}
+
+type CommunitySubscribeRequest struct {
+	Member CommunityMember `json:"member"`
+}
+
 type SearchSubmitRequest struct {
 	Type     string      `json:"type"`                // e.g., "IP_LIST", "HASH_LIST", "YARA_RULE", "GENERIC_STRING"
 	IPs      []string    `json:"ips,omitempty"`       // Used for IP_LIST
@@ -31,10 +39,12 @@ type SearchReferenceRequest struct {
 }
 
 type RequestEnveloppe struct {
-	CommunityUUID   string                 `json:"community_uuid"`
-	Type            RequestType            `json:"request_type"`
-	Error           ErrorRequest           `json:"error"`
-	SubmitRequest   SearchSubmitRequest    `json:"submit_request,omitempty"`
-	ResultRequest   SearchResultRequest    `json:"result_request,omitempty"`
-	SearchReference SearchReferenceRequest `json:"search_reference_request"`
+	CommunityUUID      string                     `json:"community_uuid"`
+	Type               RequestType                `json:"request_type"`
+	Error              *ErrorRequest              `json:"error,omitempty"`
+	SubmitRequest      *SearchSubmitRequest       `json:"submit_request,omitempty"`
+	ResultRequest      *SearchResultRequest       `json:"result_request,omitempty"`
+	SearchReference    *SearchReferenceRequest    `json:"search_reference_request,omitempty"`
+	CommunityUpdate    *CommunityUpdateRequest    `json:"community_update_request,omitempty"`
+	CommunitySubscribe *CommunitySubscribeRequest `json:"community_subscribe_request,omitempty"`
 }
