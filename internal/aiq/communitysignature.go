@@ -14,11 +14,11 @@ import (
 // representation of the community data *excluding* the signature field.
 // This is what gets marshaled and signed/verified.
 type communityContent struct {
-	UID         string            `json:"uuid"`
-	Members     []CommunityMember `json:"members"`
-	Threshold   string            `json:"maxlevel"`
-	RequestKind bool              `json:"fullcontent"`
-	Owner       CommunityMember   `json:"owner"`
+	UID         string                       `json:"uuid"`
+	Members     []aiq_message.MessageContact `json:"members"`
+	Threshold   string                       `json:"maxlevel"`
+	RequestKind bool                         `json:"fullcontent"`
+	Owner       aiq_message.MessageContact   `json:"owner"`
 }
 
 // normalizedContent generates the canonical JSON byte representation of the community,
@@ -69,7 +69,7 @@ func (c *Community) Verify() error {
 	}
 
 	// 2. Get the owner's public key (SignatureKey) and decode it from Base64
-	ownerPubKeyB64 := c.Owner.Keys.SignatureKey
+	ownerPubKeyB64 := c.Owner.SignatureKey
 	ownerPubKey, err := base64.StdEncoding.DecodeString(ownerPubKeyB64) // <-- NEW: Decode Base64 string
 	if err != nil {
 		return fmt.Errorf("verification failed: failed to decode owner's signature key from Base64: %w", err)

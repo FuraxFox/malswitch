@@ -4,6 +4,8 @@ They are encrypted before
 */
 package aiq
 
+import "github.com/FuraxFox/malswitch/internal/aiq_message"
+
 // TODO add Community requests
 
 type ErrorRequest struct {
@@ -15,7 +17,7 @@ type CommunityUpdateRequest struct {
 }
 
 type CommunitySubscribeRequest struct {
-	Member CommunityMember `json:"member"`
+	Member aiq_message.MessageContact `json:"member"`
 }
 
 type SearchSubmitRequest struct {

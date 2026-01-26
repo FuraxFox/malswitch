@@ -7,6 +7,8 @@ package aiq
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/FuraxFox/malswitch/internal/aiq_message"
 )
 
 // Serialize
@@ -70,7 +72,7 @@ func NewCommunityUpdateAcceptedRequest(communityUUID string) (*RequestEnveloppe,
 	return &enveloppe, nil
 }
 
-func NewCommunitySubscribeRequest(communityUUID string, member CommunityMember) (*RequestEnveloppe, error) {
+func NewCommunitySubscribeRequest(communityUUID string, member aiq_message.MessageContact) (*RequestEnveloppe, error) {
 	enveloppe := RequestEnveloppe{
 		CommunityUUID: communityUUID,
 		Type:          CommunitySubscribeRequestType,
