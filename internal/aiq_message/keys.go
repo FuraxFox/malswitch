@@ -225,3 +225,36 @@ func GenerateKeySets() (PublicKeySet, PrivateKeySet, error) {
 
 	return pubKeys, privKeys, nil
 }
+
+func (pks *PublicKeySet) Base64EncryptionKey() (string, error) {
+	return pks.EncryptionKey, nil
+}
+
+func (pks *PublicKeySet) Base64SignatureKey() (string, error) {
+	return pks.SignatureKey, nil
+}
+
+func (pks *PublicKeySet) BinaryEncryptionKey() ([]byte, error) {
+	return base64.StdEncoding.DecodeString(pks.EncryptionKey)
+}
+
+func (pks *PublicKeySet) BinarySignatureKey() ([]byte, error) {
+	return base64.StdEncoding.DecodeString(pks.SignatureKey)
+}
+
+func CreateMessageContact(endpoint string, pk PublicKeySet) (*MessageContact, error) {
+	ek, err := pk.BinaryEncryptionKey()
+	if err != nil {
+		return nil, err
+	}
+	sk, err := pk.BinarySignatureKey()
+	if err != nil {
+		return nil, err
+	}
+	contact := MessageContact{
+		Endpoint:      endpoint,
+		SignatureKey:  sk,
+		EncryptionKey: ek,
+	}
+	return &contact, nil
+}

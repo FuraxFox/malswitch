@@ -3,7 +3,6 @@ package aiq
 import (
 	"bytes"
 	"crypto/ed25519"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
@@ -13,7 +12,7 @@ import (
 func HandleCommunityUpdateMessage(rawJSON []byte, decryptionKey []byte, signingKey ed25519.PrivateKey, correspondents []aiq_message.MessageContact) (*Community, []byte, error) {
 
 	// receive and verify the message
-	community, sender, err := receiveCommunityUpdate(rawJSON, decryptionKey, signingKey, correspondents)
+	community, sender, err := receiveCommunityUpdate(rawJSON, decryptionKey, correspondents)
 	if err != nil {
 		// something was wrong sending error
 		envelope, _ := NewErrorRequest(community.UID, "invalid community update")
@@ -36,8 +35,12 @@ func HandleCommunityUpdateMessage(rawJSON []byte, decryptionKey []byte, signingK
 }
 
 // HandleCommunitySubscribe decrypts and verifies an AIQ subscription message and returns the received CommunityMember and the acknowledge message.
-func HandleCommunitySubscribe(rawJSON []byte, decryptionKey []byte, signingKey ed25519.PrivateKey,
+func HandleCommunitySubscribe(
+	rawJSON []byte,
+	decryptionKey []byte,
+	signingKey ed25519.PrivateKey,
 	correspondents []aiq_message.MessageContact) (*aiq_message.MessageContact, []byte, error) {
+
 	member, cuuid, err := receiveCommunitySubscribe(rawJSON, decryptionKey, correspondents)
 	if err != nil {
 		// something was wrong sending error
@@ -93,12 +96,7 @@ func receiveCommunitySubscribe(rawJSON []byte, decryptionKey []byte, corresponde
 	member := envelope.CommunitySubscribe.Member
 
 	// Verify signature: ensure the member's public key matches the AIQ message sender's signature key.
-	memberPubKey, err := base64.StdEncoding.DecodeString(member.SignatureKey)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to decode member public key: %w", err)
-	}
-
-	if !bytes.Equal(sender.SignatureKey, memberPubKey) {
+	if !bytes.Equal(sender.SignatureKey, member.SignatureKey) {
 		return nil, "", fmt.Errorf("member public key mismatch with AIQ message sender")
 	}
 
@@ -106,7 +104,7 @@ func receiveCommunitySubscribe(rawJSON []byte, decryptionKey []byte, corresponde
 }
 
 // ReceiveCommunityUpdate decrypts and verifies an AIQ community update message, verifies the community's internal signature, updates a local file, and generates an acknowledgment or error message.
-func receiveCommunityUpdate(rawJSON []byte, decryptionKey []byte, signingKey ed25519.PrivateKey, correspondents []aiq_message.MessageContact) (*Community, *aiq_message.MessageContact, error) {
+func receiveCommunityUpdate(rawJSON []byte, decryptionKey []byte, correspondents []aiq_message.MessageContact) (*Community, *aiq_message.MessageContact, error) {
 
 	// Receive and decrypt AIQ message
 	payload, sender, err := aiq_message.ReceiveMessage(rawJSON, decryptionKey, correspondents)
@@ -135,11 +133,7 @@ func receiveCommunityUpdate(rawJSON []byte, decryptionKey []byte, signingKey ed2
 	}
 
 	// Verify sender is the owner
-	ownerPubKey, err := base64.StdEncoding.DecodeString(community.Owner.SignatureKey)
-	if err != nil {
-		return nil, &sender, fmt.Errorf("failed to decode owner public key")
-	}
-	if !bytes.Equal(sender.SignatureKey, ownerPubKey) {
+	if !bytes.Equal(sender.SignatureKey, community.Owner.SignatureKey) {
 		return nil, &sender, fmt.Errorf("sender is not the community owner")
 	}
 

@@ -48,21 +48,24 @@ func TestCommunityPersistence(t *testing.T) {
 	filename := filepath.Join(tmpDir, "test_community.json")
 
 	// 1. Create the Community struct
+	m, err := aiq_message.CreateMessageContact("https://member1.com", ownerPubKey)
+	if err != nil {
+		t.Fatalf("Failed to create member: %v", err)
+	}
+
+	o, err := aiq_message.CreateMessageContact("https://owner.com", ownerPubKey)
+	if err != nil {
+		t.Fatalf("Failed to create owner: %v", err)
+	}
+
 	community := Community{
 		UID:         "test-123",
 		Threshold:   "Low",
 		RequestKind: true,
 		Members: []aiq_message.MessageContact{
-			{Endpoint: "https://member1.com",
-				EncryptionKey: decode(ownerPubKey.EncryptionKey),
-				SignatureKey:  decode(ownerPubKey.SignatureKey),
-			},
+			*m,
 		},
-		Owner: aiq_message.MessageContact{
-			Endpoint:      "https://owner.com",
-			SignatureKey:  decode(ownerPubKey.SignatureKey),
-			EncryptionKey: decode(ownerPubKey.EncryptionKey),
-		},
+		Owner: *o,
 	}
 
 	// 2. Sign the community
@@ -100,17 +103,18 @@ func TestVerifyFailure(t *testing.T) {
 	ownerPubKey, ownerPrivKey := generateKeys(t)
 	attackerPubKey, attackerPrivKey := generateKeys(t)
 
+	ownerContact, err := aiq_message.CreateMessageContact("https://owner.com", ownerPubKey)
+	if err != nil {
+		t.Fatalf("Failed to create owner contact : %v", err)
+	}
+
 	// Create base community
 	community := Community{
 		UID:         "test-456",
 		Threshold:   "High",
 		RequestKind: false,
 		Members:     []aiq_message.MessageContact{},
-		Owner: aiq_message.MessageContact{
-			Endpoint:      "https://owner.com",
-			SignatureKey:  decode(ownerPubKey.SignatureKey),
-			EncryptionKey: decode(ownerPubKey.EncryptionKey),
-		},
+		Owner:       *ownerContact,
 	}
 	community.Sign(ownerPrivKey)
 
@@ -146,9 +150,12 @@ func TestVerifyFailure(t *testing.T) {
 		{
 			name: "Owner key tampering (signature doesn't match new owner's public key)",
 			mutate: func(c *Community) {
+				ek, _ := attackerPubKey.BinaryEncryptionKey()
+				sk, _ := attackerPubKey.BinarySignatureKey()
+
 				// Change the owner's public key without resigning
-				c.Owner.EncryptionKey = decode(attackerPubKey.EncryptionKey)
-				c.Owner.SignatureKey = decode(attackerPubKey.SignatureKey)
+				c.Owner.EncryptionKey = ek
+				c.Owner.SignatureKey = sk
 			},
 			expectErr: true,
 		},
@@ -156,7 +163,7 @@ func TestVerifyFailure(t *testing.T) {
 			name: "Signature decoding failure (corrupt Base64 public key)",
 			mutate: func(c *Community) {
 				// Corrupt the Base64 key string to fail decoding
-				c.Owner.SignatureKey = decode("not a valid base64 key")
+				c.Owner.SignatureKey, _ = base64.StdEncoding.DecodeString("not a valid base64 key")
 			},
 			expectErr: true,
 		},
@@ -207,9 +214,14 @@ func TestLoadFailure(t *testing.T) {
 	filename := filepath.Join(tmpDir, "bad_sig.json")
 
 	// Create and sign a community
+	ownerContact, err := aiq_message.CreateMessageContact("https://owner.com", ownerPubKey)
+	if err != nil {
+		t.Fatalf("Failed to create owner contact : %v", err)
+	}
+
 	community := Community{
 		UID: "bad-sig-test", Threshold: "High", RequestKind: false,
-		Owner: aiq_message.MessageContact{Endpoint: "https://owner.com", Keys: ownerPubKey},
+		Owner: *ownerContact,
 	}
 	community.Sign(ownerPrivKey)
 
@@ -237,31 +249,22 @@ func TestCommunityMessages(t *testing.T) {
 	ownerPub, ownerPriv, _ := aiq_message.GenerateKeySets()
 	memberPub, memberPriv, _ := aiq_message.GenerateKeySets()
 
-	decode := func(s string) []byte {
-		b, _ := base64.StdEncoding.DecodeString(s)
-		return b
+	ownerContact, err := aiq_message.CreateMessageContact("https://owner.com", ownerPub)
+	if err != nil {
+		t.Fatalf("Failed to create owner contact : %v", err)
 	}
 
-	ownerContact := aiq_message.MessageContact{
-		Endpoint:      "https://owner.com",
-		EncryptionKey: decode(ownerPub.EncryptionKey),
-		SignatureKey:  decode(ownerPub.SignatureKey),
-	}
-	memberContact := aiq_message.MessageContact{
-		Endpoint:      "https://member.com",
-		EncryptionKey: decode(memberPub.EncryptionKey),
-		SignatureKey:  decode(memberPub.SignatureKey),
+	memberContact, err := aiq_message.CreateMessageContact("https://member.com", memberPub)
+	if err != nil {
+		t.Fatalf("Failed to create membre contact : %v", err)
 	}
 
 	// 2. Create a community and save it to file
 	tmpDir := t.TempDir()
 	communityFile := filepath.Join(tmpDir, "community.json")
 	community := Community{
-		UID: "comm-1",
-		Owner: CommunityMember{
-			Endpoint: "https://owner.com",
-			Keys:     ownerPub,
-		},
+		UID:   "comm-1",
+		Owner: *ownerContact,
 	}
 	if err := community.Sign(ownerPriv); err != nil {
 		t.Fatalf("Sign failed: %v", err)
@@ -271,14 +274,18 @@ func TestCommunityMessages(t *testing.T) {
 	}
 
 	// 3. Test GenerateCommunityUpdate
-	updateMsg, err := community.GenerateUpdate(ownerPriv.SigningKey, []aiq_message.MessageContact{memberContact})
+	updateMsg, err := community.GenerateUpdate(ownerPriv.SigningKey, []aiq_message.MessageContact{*memberContact})
 	if err != nil {
 		t.Fatalf("GenerateCommunityUpdate failed: %v", err)
 	}
 
 	// 4. Test ReceiveCommunityUpdate
 	localUpdateFile := filepath.Join(tmpDir, "community_updated.json")
-	rcommunity, ackMsg, err := HandleCommunityUpdateMessage(updateMsg, memberPriv.DecryptionKey, memberPriv.SigningKey, []aiq_message.MessageContact{ownerContact})
+	rcommunity, ackMsg, err := HandleCommunityUpdateMessage(
+		updateMsg,
+		memberPriv.DecryptionKey,
+		memberPriv.SigningKey,
+		[]aiq_message.MessageContact{*ownerContact})
 	if err != nil {
 		t.Fatalf("ReceiveCommunityUpdate failed: %v", err)
 	}
@@ -293,7 +300,7 @@ func TestCommunityMessages(t *testing.T) {
 	}
 
 	// Verify ack message
-	payload, _, err := aiq_message.ReceiveMessage(ackMsg, ownerPriv.DecryptionKey, []aiq_message.MessageContact{memberContact})
+	payload, _, err := aiq_message.ReceiveMessage(ackMsg, ownerPriv.DecryptionKey, []aiq_message.MessageContact{*memberContact})
 	if err != nil {
 		t.Fatalf("Failed to receive ack message: %v", err)
 	}
@@ -306,14 +313,23 @@ func TestCommunityMessages(t *testing.T) {
 	}
 
 	// 5. Test GenerateCommunitySubscribe
-	memberInfo := aiq_message.MessageContact{Endpoint: "https://member.com", Keys: memberPub}
-	subMsg, err := GenerateCommunitySubscribe("comm-1", memberInfo, memberPriv.SigningKey, ownerContact)
+
+	memberInfo, err := aiq_message.CreateMessageContact("https://member.com", memberPub)
+	if err != nil {
+		t.Fatalf("Failed to create member contact : %v", err)
+	}
+
+	subMsg, err := GenerateCommunitySubscribe("comm-1", *memberInfo, memberPriv.SigningKey, *ownerContact)
 	if err != nil {
 		t.Fatalf("GenerateCommunitySubscribe failed: %v", err)
 	}
 
 	// 6. Test ReceiveCommunitySubscribe
-	receivedMember, msg, err := HandleCommunitySubscribe(subMsg, ownerPriv.DecryptionKey, []aiq_message.MessageContact{memberContact})
+	receivedMember, _, err := HandleCommunitySubscribe(
+		subMsg,
+		ownerPriv.DecryptionKey,
+		ownerPriv.SigningKey,
+		[]aiq_message.MessageContact{*memberContact})
 	if err != nil {
 		t.Fatalf("ReceiveCommunitySubscribe failed: %v", err)
 	}
@@ -326,26 +342,27 @@ func TestCommunitySubscriptionUnknownMember(t *testing.T) {
 	ownerPub, ownerPriv, _ := aiq_message.GenerateKeySets()
 	memberPub, memberPriv, _ := aiq_message.GenerateKeySets()
 
-	decode := func(s string) []byte {
-		b, _ := base64.StdEncoding.DecodeString(s)
-		return b
+	ownerContact, err := aiq_message.CreateMessageContact("https://owner.com", ownerPub)
+	if err != nil {
+		t.Fatalf("Failed to create owner contact : %v", err)
 	}
 
-	ownerContact := aiq_message.MessageContact{
-		Endpoint:      "https://owner.com",
-		EncryptionKey: decode(ownerPub.EncryptionKey),
-		SignatureKey:  decode(ownerPub.SignatureKey),
+	memberInfo, err := aiq_message.CreateMessageContact("https://member.com", memberPub)
+	if err != nil {
+		t.Fatalf("Failed to create member contact : %v", err)
 	}
 
-	memberInfo := aiq_message.MessageContact{
-		Endpoint: "https://member.com", EncryptionKey: decode(memberPub.EncryptionKey)}
-	subMsg, err := GenerateCommunitySubscribe("comm-1", memberInfo, memberPriv.SigningKey, ownerContact)
+	subMsg, err := GenerateCommunitySubscribe("comm-1", *memberInfo, memberPriv.SigningKey, *ownerContact)
 	if err != nil {
 		t.Fatalf("GenerateCommunitySubscribe failed: %v", err)
 	}
 
 	// Receive with EMPTY correspondents list (unknown member)
-	receivedMember, comuuid, err := HandleCommunitySubscribe(subMsg, ownerPriv.DecryptionKey, []aiq_message.MessageContact{})
+	receivedMember, comuuid, err := HandleCommunitySubscribe(
+		subMsg,
+		ownerPriv.DecryptionKey,
+		ownerPriv.SigningKey,
+		[]aiq_message.MessageContact{})
 	if err != nil {
 		t.Fatalf("ReceiveCommunitySubscribe with unknown member failed(com_uuid:%v): %v", comuuid, err)
 	}

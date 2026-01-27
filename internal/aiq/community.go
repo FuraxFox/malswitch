@@ -3,6 +3,7 @@ package aiq
 import (
 	"bytes"
 	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -19,13 +20,25 @@ type Community struct {
 	Owner       aiq_message.MessageContact   `json:"owner"`
 }
 
-func (c *Community) AddMember(endpoint string, keys aiq_message.PublicKeySet) {
+func (c *Community) AddMember(endpoint string, keys aiq_message.PublicKeySet) error {
+
+	ek, err := base64.StdEncoding.DecodeString(keys.EncryptionKey)
+	if err != nil {
+		return err
+	}
+	sk, err := base64.StdEncoding.DecodeString(keys.SignatureKey)
+	if err != nil {
+		return err
+	}
+
 	m := aiq_message.MessageContact{
 		Endpoint:      endpoint,
-		EncryptionKey: []byte(keys.EncryptionKey),
-		SignatureKey:  []byte(keys.SignatureKey),
+		EncryptionKey: ek,
+		SignatureKey:  sk,
 	}
 	c.Members = append(c.Members, m)
+
+	return nil
 }
 
 func (c *Community) LookupMemberByKey(pubkey string) *aiq_message.MessageContact {
