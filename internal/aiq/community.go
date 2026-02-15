@@ -41,6 +41,16 @@ func (c *Community) AddMember(endpoint string, keys aiq_message.PublicKeySet) er
 	return nil
 }
 
+// AddContact adds a MessageContact to the community's members if it's not already present.
+func (c *Community) AddContact(contact aiq_message.MessageContact) {
+	for _, m := range c.Members {
+		if bytes.Equal(m.SignatureKey, contact.SignatureKey) {
+			return
+		}
+	}
+	c.Members = append(c.Members, contact)
+}
+
 func (c *Community) LookupMemberByKey(pubkey string) *aiq_message.MessageContact {
 	for _, m := range c.Members {
 		if bytes.Equal(m.SignatureKey, []byte(pubkey)) {
