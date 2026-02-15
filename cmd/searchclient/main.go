@@ -4,9 +4,13 @@
 package main
 
 import (
+	"bytes"
+	"crypto/ed25519"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -37,6 +41,10 @@ type model struct {
 	ClientKeys    aiq_message.PrivateKeySet
 	ServerContact aiq_message.MessageContact // Server's public key info
 
+	// Community management
+	community         *aiq.Community
+	communityFile     string
+	subscriptionQueue []aiq_message.MessageContact
 }
 
 var (
@@ -44,6 +52,66 @@ var (
 	// HTTP client
 	httpClient = &http.Client{Timeout: 15 * time.Second}
 )
+
+type subscriptionMsg struct {
+	member *aiq_message.MessageContact
+}
+
+func startSubscriptionServer(p *tea.Program, keys aiq_message.PrivateKeySet, comm *aiq.Community) {
+	// Extract port from owner endpoint
+	u, err := url.Parse(comm.Owner.Endpoint)
+	if err != nil {
+		log.Printf("Invalid owner endpoint: %v", err)
+		return
+	}
+	addr := u.Host
+	if !strings.Contains(addr, ":") {
+		// Use default port if not specified, but usually we need a port to listen
+		log.Printf("Owner endpoint does not specify a port: %s", addr)
+		return
+	}
+	// Extract just the port part if it's localhost or an IP, but ListenAndServe takes host:port
+	// If it's something like "http://example.com:9000/sub", u.Host is "example.com:9000"
+	// We might want to listen on all interfaces if it's not localhost
+	listenAddr := addr
+	if strings.HasPrefix(addr, "localhost:") || strings.HasPrefix(addr, "127.0.0.1:") {
+		// keep as is
+	} else {
+		// Replace hostname with empty to listen on all interfaces
+		if i := strings.LastIndex(addr, ":"); i != -1 {
+			listenAddr = addr[i:]
+		}
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc(u.Path, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read body", http.StatusInternalServerError)
+			return
+		}
+
+		member, ack, err := aiq.HandleCommunitySubscribe(body, keys.DecryptionKey, keys.SigningKey, comm.Members)
+		if err != nil {
+			log.Printf("Subscription failed: %v", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		p.Send(subscriptionMsg{member: member})
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(ack)
+	})
+
+	log.Printf("Starting subscription server on %s%s", listenAddr, u.Path)
+	if err := http.ListenAndServe(listenAddr, mux); err != nil {
+		log.Printf("Subscription server failed: %v", err)
+	}
+}
 
 // submitSearch builds the SearchRequest, transitions to loading, and sends the request.
 func (m *model) submitSearch() (tea.Model, tea.Cmd) {
@@ -109,26 +177,50 @@ func main() {
 	log.SetFlags(log.Ltime) // Use original log settings
 
 	// Parse Arguments (Original CLI structure)
-	if len(os.Args) < 3 || len(os.Args) > 4 {
-		fmt.Printf("Usage: %s <client_priv_file> <server_pub_file> [server_url]\n", os.Args[0])
+	if len(os.Args) < 3 {
+		fmt.Printf("Usage: %s <client_priv_file> <server_pub_file> [server_url] [community_file]\n", os.Args[0])
 		os.Exit(1)
 	}
 
 	clientPrivFile := os.Args[1]
 	serverPubKeyFile := os.Args[2]
 	serverURL := "http://localhost:8080/decrypt"
-	if len(os.Args) == 4 {
+	if len(os.Args) >= 4 {
 		serverURL = os.Args[3]
 	}
 
-	// This is a placeholder UUID.
-	const communityUUID = "102a4868-74b9-41c3-b2de-694f02def520"
+	var communityFile string
+	var comm *aiq.Community
+	communityUUID := "102a4868-74b9-41c3-b2de-694f02def520"
+
+	if len(os.Args) >= 5 {
+		communityFile = os.Args[4]
+		c, err := aiq.LoadCommunity(communityFile)
+		if err != nil {
+			log.Fatalf("Failed to load community file: %v", err)
+		}
+		comm = &c
+		communityUUID = comm.UID
+	}
 
 	// TUI Execution
 	fmt.Println("Starting Secure Message Client TUI...")
-	p := tea.NewProgram(
-		initialModel(serverURL, communityUUID, clientPrivFile, serverPubKeyFile),
-		tea.WithAltScreen())
+	m := initialModel(serverURL, communityUUID, clientPrivFile, serverPubKeyFile, communityFile, comm)
+	p := tea.NewProgram(m, tea.WithAltScreen())
+
+	// If we are the owner, start the subscription listener
+	if comm != nil && m.ClientKeys.SigningKey != nil {
+		log.Printf("Community loaded: %s", comm.UID)
+		// Verify if we are the owner
+		myPubKey := m.ClientKeys.SigningKey.Public().(ed25519.PublicKey)
+		if bytes.Equal(myPubKey, comm.Owner.SignatureKey) {
+			log.Printf("We are the owner of the community, starting listener...")
+			go startSubscriptionServer(p, m.ClientKeys, comm)
+		} else {
+			log.Printf("We are NOT the owner of the community. My key: %x, Owner key: %x", myPubKey, comm.Owner.SignatureKey)
+		}
+	}
+
 	if _, err := p.Run(); err != nil {
 		log.Fatalf("Alas, there's been an error: %v", err)
 	}

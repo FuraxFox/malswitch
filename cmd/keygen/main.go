@@ -69,6 +69,6 @@ func writeJSONFile(filename string, data interface{}) {
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(data); err != nil {
-		log.Fatalf("Failed to encode JSON to file %s: %v", err)
+		log.Fatalf("Failed to encode JSON to file %s: %v", filename, err)
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"github.com/FuraxFox/malswitch/internal/aiq_message"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // initKeysFromFile loads keys from the provided file paths, simulating the original logic.
@@ -38,16 +39,19 @@ func (m *model) initKeysFromFile(clientPrivFile, serverPubKeyFile string) error 
 // sendEncryptedMessage encrypts the clear text (the signed JSON payload), posts it, and decrypts the response.
 // The result is handled asynchronously by the TUI.
 func sendEncryptedMessage(serverURL string, clientKeys *aiq_message.PrivateKeySet, serverContact *aiq_message.MessageContact, clearText string) (string, error) {
+	return sendEncryptedMessageTo(serverURL, clientKeys, []aiq_message.MessageContact{*serverContact}, clearText)
+}
 
-	// Acceptable contacts, containing only the server informations
-	correspondents := []aiq_message.MessageContact{*serverContact}
+// sendEncryptedMessageTo encrypts the clear text, posts it to the URL, and decrypts the response using any of the correspondents.
+func sendEncryptedMessageTo(targetURL string, clientKeys *aiq_message.PrivateKeySet, correspondents []aiq_message.MessageContact, clearText string) (string, error) {
+
 	jsonPayload, err := aiq_message.GenerateMessage([]byte(clearText), clientKeys.SigningKey, correspondents)
 	if err != nil {
 		return "", fmt.Errorf("message generation failed: %w", err)
 	}
 
 	// Sending...
-	resp, err := httpClient.Post(serverURL, "application/json", bytes.NewReader(jsonPayload))
+	resp, err := httpClient.Post(targetURL, "application/json", bytes.NewReader(jsonPayload))
 	if err != nil {
 		return "", fmt.Errorf("HTTP request failed: %w", err)
 	}
@@ -71,4 +75,41 @@ func sendEncryptedMessage(serverURL string, clientKeys *aiq_message.PrivateKeySe
 	// Success is implied by the lack of error from DecryptMessage and the OK status.
 	log.Printf("Acknowlede received: %v", ack)
 	return string(ack), nil
+}
+
+// sendCommunityUpdateCmd generates and sends a community update to a specific contact.
+func (m *model) sendCommunityUpdateCmd(contact aiq_message.MessageContact) tea.Cmd {
+	return func() tea.Msg {
+		// Generate the update message
+		updatePayload, err := m.community.GenerateUpdate(m.ClientKeys.SigningKey, []aiq_message.MessageContact{contact})
+		if err != nil {
+			return sendResultMsg{err: fmt.Errorf("failed to generate community update: %w", err)}
+		}
+
+		// Sending... (since GenerateUpdate already returns the full AIQ message, we use http.Post directly)
+		resp, err := httpClient.Post(contact.Endpoint, "application/json", bytes.NewReader(updatePayload))
+		if err != nil {
+			return sendResultMsg{err: fmt.Errorf("failed to send community update to %s: %w", contact.Endpoint, err)}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return sendResultMsg{err: fmt.Errorf("server returned error %d: %s", resp.StatusCode, string(body))}
+		}
+
+		// Decode ACK
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return sendResultMsg{err: fmt.Errorf("failed to read ACK: %w", err)}
+		}
+
+		// The ACK is also an AIQ message
+		ack, _, err := aiq_message.ReceiveMessage(body, m.ClientKeys.DecryptionKey, []aiq_message.MessageContact{contact})
+		if err != nil {
+			return sendResultMsg{err: fmt.Errorf("failed to decrypt ACK: %w", err)}
+		}
+
+		return sendResultMsg{result: "Community update accepted by " + contact.Endpoint + ": " + string(ack)}
+	}
 }

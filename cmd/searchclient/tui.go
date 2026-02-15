@@ -4,12 +4,14 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
 	"strings"
 
 	"github.com/FuraxFox/malswitch/internal/aiq"
+	"github.com/FuraxFox/malswitch/internal/aiq_message"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -23,7 +25,10 @@ const (
 	stageInput
 	stageLoading
 	stageResult
+	stageCommunity
 )
+
+const MANAGE_COMMUNITY = "Manage Community"
 
 var (
 	appStyle          = lipgloss.NewStyle().Padding(1, 2).BorderStyle(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#FFFFFF"))
@@ -85,7 +90,7 @@ func (d searchOptionDelegate) Render(w io.Writer, m list.Model, index int, listI
 
 ////////////////////////////////////////////////////// Interface initialisation
 
-func initialModel(serverURL string, uuid string, clientPrivFile string, serverPubKeyFile string) model {
+func initialModel(serverURL string, uuid string, clientPrivFile string, serverPubKeyFile string, communityFile string, comm *aiq.Community) model {
 	ti := textinput.New()
 	ti.Placeholder = "IOCs or Rule..."
 	ti.Focus()
@@ -94,7 +99,12 @@ func initialModel(serverURL string, uuid string, clientPrivFile string, serverPu
 
 	const defaultListWidth = 60
 
-	l := list.New(searchOptions, searchOptionDelegate{}, defaultListWidth, listHeight)
+	options := append([]list.Item{}, searchOptions...)
+	if communityFile != "" {
+		options = append(options, SearchOption(MANAGE_COMMUNITY))
+	}
+
+	l := list.New(options, searchOptionDelegate{}, defaultListWidth, listHeight)
 	l.Title = "Select Search Type:"
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
@@ -103,11 +113,14 @@ func initialModel(serverURL string, uuid string, clientPrivFile string, serverPu
 	l.Styles.HelpStyle = helpStyle
 
 	m := model{
-		stage:          stageSelect,
-		input:          ti,
-		communityUUID:  uuid,
-		ServerURL:      serverURL,
-		lstSearchTypes: l,
+		stage:             stageSelect,
+		input:             ti,
+		communityUUID:     uuid,
+		ServerURL:         serverURL,
+		lstSearchTypes:    l,
+		community:         comm,
+		communityFile:     communityFile,
+		subscriptionQueue: []aiq_message.MessageContact{},
 	}
 
 	// Load the specified key files
@@ -143,7 +156,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case tea.KeyLeft:
 			// Go back to selection stage if not already there or loading
-			if m.stage == stageInput || m.stage == stageResult {
+			if m.stage == stageInput || m.stage == stageResult || m.stage == stageCommunity {
 				m.stage = stageSelect
 				m.errorMsg = ""
 				m.resultMsg = ""
@@ -163,6 +176,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.errorMsg = ""
 		}
 		return m, nil
+
+	case subscriptionMsg:
+		m.subscriptionQueue = append(m.subscriptionQueue, *msg.member)
+		return m, nil
 	}
 
 	switch m.stage {
@@ -170,6 +187,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleSelectStage(msg)
 	case stageInput:
 		return m.handleInputStage(msg)
+	case stageCommunity:
+		return m.handleCommunityStage(msg)
 	}
 	// Forward input messages to the text input model
 	switch m.stage {
@@ -189,6 +208,10 @@ func (m *model) handleSelectStage(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch keypress := msg.String(); keypress {
 		case "enter":
 			sel := m.lstSearchTypes.SelectedItem().(SearchOption)
+			if string(sel) == MANAGE_COMMUNITY {
+				m.stage = stageCommunity
+				return m, nil
+			}
 			m.searchType = string(sel)
 
 			m.input.Placeholder = searchPrompts[m.searchType]
@@ -219,6 +242,41 @@ func (m *model) handleInputStage(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m *model) handleCommunityStage(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch keypress := msg.String(); keypress {
+		case "a":
+			if len(m.subscriptionQueue) > 0 {
+				member := m.subscriptionQueue[0]
+				m.subscriptionQueue = m.subscriptionQueue[1:]
+
+				// Update community
+				m.community.AddContact(member)
+				if err := m.community.Sign(m.ClientKeys); err != nil {
+					m.errorMsg = "Signing failed: " + err.Error()
+					m.stage = stageResult
+					return m, nil
+				}
+				if err := m.community.Save(m.communityFile); err != nil {
+					m.errorMsg = "Saving failed: " + err.Error()
+					m.stage = stageResult
+					return m, nil
+				}
+
+				m.stage = stageLoading
+				m.loadingMsg = fmt.Sprintf("Sending community update to %s...", member.Endpoint)
+				return m, m.sendCommunityUpdateCmd(member)
+			}
+		case "r":
+			if len(m.subscriptionQueue) > 0 {
+				m.subscriptionQueue = m.subscriptionQueue[1:]
+			}
+		}
+	}
+	return m, nil
+}
+
 //////////////////////////////////////////////////////////// Update the display
 
 func (m model) View() string {
@@ -247,6 +305,25 @@ func (m model) View() string {
 			s.WriteString(statusStyle.Render("SUCCESS: ") + m.resultMsg + "\n\n")
 		}
 		s.WriteString("(Press Left Arrow to start a new search, q to quit)\n")
+
+	case stageCommunity:
+		s.WriteString(titleStyle.Render(" Community Management ") + "\n\n")
+		s.WriteString(fmt.Sprintf("UID: %s\n", m.community.UID))
+		s.WriteString(fmt.Sprintf("Members: %d\n", len(m.community.Members)))
+		s.WriteString("\nPending Subscriptions:\n")
+		if len(m.subscriptionQueue) == 0 {
+			s.WriteString("  (None)\n")
+		} else {
+			for i, sub := range m.subscriptionQueue {
+				prefix := "  "
+				if i == 0 {
+					prefix = "> "
+				}
+				s.WriteString(fmt.Sprintf("%s%s (%s)\n", prefix, sub.Endpoint, base64.StdEncoding.EncodeToString(sub.SignatureKey[:8])))
+			}
+			s.WriteString("\n(Press 'a' to accept first, 'r' to reject first)\n")
+		}
+		s.WriteString("\n(Press Left Arrow to go back)\n")
 	}
 
 	// Display persistent info (like UUID)
