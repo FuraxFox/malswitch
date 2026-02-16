@@ -70,7 +70,7 @@ func doContactGen(contactName string, contactEndpoint string) error {
 	privFileName := fmt.Sprintf("%s.priv", contactName)
 	writeJSONFile(privFileName, privKeysJSON)
 
-	fmt.Printf("\nKey generation successful for '%s'.\n", contactName)
+	fmt.Printf("\nContact generation successful for '%s'.\n", contactName)
 	fmt.Printf("Contact saved to: %s\n", contactFileName)
 	fmt.Printf("Private keys saved to: %s\n", privFileName)
 	fmt.Println("\n-- Public Key Contents (Encryption Key / Signature Key) --")
