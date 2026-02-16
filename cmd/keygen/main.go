@@ -7,18 +7,20 @@ import (
 )
 
 func usage(commandname string) {
-	fmt.Println("Usage:")
+	fmt.Printf("%s - a tool to manage keys, contacts and communities for AIQ system\n", commandname)
+	fmt.Println("\nUsage:")
 	fmt.Printf("   %s keygen  <contact_name>\n", commandname)
 	fmt.Printf("   %s contgen <contact_name> <contact endpoint>\n", commandname)
 	fmt.Printf("   %s comcrea <owner private key file>  <owner contact file>> <threshold> <community file>\n", commandname)
 	fmt.Printf("   %s comadd  <owner private key file> <community file> <member_signature_pubkey_file> <member_encryption_pubkey_file> <member endpoint>\n", commandname)
 	fmt.Printf("   %s comdel  <owner private key file> <community file> <member_signature_pubkey_file> <member_encryption_pubkey_file>\n", commandname)
-	fmt.Println("Example: ")
-	fmt.Printf("  %s keygen Alice  \n", commandname)
-	fmt.Printf("  %s contcrea Alice 'https://:8888' \n", commandname)
-	fmt.Printf("  %s comcrea owner_key.priv mycommunity.cmy \n", commandname)
-	fmt.Printf("  %s comadd  owner_key.priv  mycommunity.cmy bob.ctc \n", commandname)
-	fmt.Printf("  %s comdel  owner_key.priv  mycommunity.cmy bob.ctc \n", commandname)
+	fmt.Println("\nExample: ")
+	fmt.Printf("   %s keygen Alice  \n", commandname)
+	fmt.Printf("   %s contcrea Alice 'https://:8888' \n", commandname)
+	fmt.Printf("   %s comcrea owner_key.priv mycommunity.cmy \n", commandname)
+	fmt.Printf("   %s comadd  owner_key.priv  mycommunity.cmy bob.ctc \n", commandname)
+	fmt.Printf("   %s comdel  owner_key.priv  mycommunity.cmy bob.ctc \n", commandname)
+	fmt.Println("")
 }
 
 func main() {
