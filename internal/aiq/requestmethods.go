@@ -55,7 +55,7 @@ func NewSubmitSearchHashesRequest(community string, hashes []HashEntry) (*Reques
 
 func NewCommunityUpdateRequest(community Community) (*RequestEnveloppe, error) {
 	enveloppe := RequestEnveloppe{
-		CommunityUUID: community.UID,
+		CommunityUUID: community.UUID,
 		Type:          CommunityUpdateRequestType,
 		CommunityUpdate: &CommunityUpdateRequest{
 			Community: community,

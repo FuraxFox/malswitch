@@ -9,15 +9,25 @@ import (
 	"os"
 
 	"github.com/FuraxFox/malswitch/internal/aiq_message"
+	"github.com/google/uuid"
 )
 
 type Community struct {
-	UID         string                       `json:"uuid"`
+	UUID        string                       `json:"uuid"`
 	Members     []aiq_message.MessageContact `json:"members"`
 	Threshold   string                       `json:"maxlevel"`
 	RequestKind bool                         `json:"fullcontent"`
 	Signature   []byte                       `json:"signature"`
 	Owner       aiq_message.MessageContact   `json:"owner"`
+}
+
+func CreateCommunity(owner aiq_message.MessageContact, threshold string) (Community, error) {
+	var c Community
+	c.UUID = uuid.NewString()
+	c.Members = make([]aiq_message.MessageContact, 0)
+	c.Threshold = threshold
+	c.Owner = owner
+	return c, nil
 }
 
 func (c *Community) AddMember(endpoint string, keys aiq_message.PublicKeySet) error {
@@ -51,9 +61,27 @@ func (c *Community) AddContact(contact aiq_message.MessageContact) {
 	c.Members = append(c.Members, contact)
 }
 
-func (c *Community) LookupMemberByKey(pubkey string) *aiq_message.MessageContact {
+// RemoveMember removes a specific contact from the community based on their SignatureKey.
+func (c *Community) RemoveMember(contact aiq_message.MessageContact) error {
+	newMembers := make([]aiq_message.MessageContact, 0, len(c.Members))
+	found := false
 	for _, m := range c.Members {
-		if bytes.Equal(m.SignatureKey, []byte(pubkey)) {
+		// If the signature key matches, we skip adding it to the new list
+		if !bytes.Equal(m.SignatureKey, contact.SignatureKey) {
+			newMembers = append(newMembers, m)
+			found = true
+		}
+	}
+	if !found {
+		return fmt.Errorf("member not found in community")
+	}
+	c.Members = newMembers
+	return nil
+}
+
+func (c *Community) LookupMemberByKey(pubkey []byte) *aiq_message.MessageContact {
+	for _, m := range c.Members {
+		if bytes.Equal(m.SignatureKey, pubkey) {
 			return &m
 		}
 	}

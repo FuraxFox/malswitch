@@ -25,7 +25,7 @@ type communityContent struct {
 func (c *Community) normalizedContent() ([]byte, error) {
 	// Create the content structure, excluding the Signature field
 	content := communityContent{
-		UID:         c.UID,
+		UID:         c.UUID,
 		Members:     c.Members,
 		Threshold:   c.Threshold,
 		RequestKind: c.RequestKind,

@@ -308,7 +308,7 @@ func (m model) View() string {
 
 	case stageCommunity:
 		s.WriteString(titleStyle.Render(" Community Management ") + "\n\n")
-		s.WriteString(fmt.Sprintf("UID: %s\n", m.community.UID))
+		s.WriteString(fmt.Sprintf("UID: %s\n", m.community.UUID))
 		s.WriteString(fmt.Sprintf("Members: %d\n", len(m.community.Members)))
 		s.WriteString("\nPending Subscriptions:\n")
 		if len(m.subscriptionQueue) == 0 {
@@ -319,7 +319,10 @@ func (m model) View() string {
 				if i == 0 {
 					prefix = "> "
 				}
-				s.WriteString(fmt.Sprintf("%s%s (%s)\n", prefix, sub.Endpoint, base64.StdEncoding.EncodeToString(sub.SignatureKey[:8])))
+				s.WriteString(fmt.Sprintf("%s%s (%s)\n",
+					prefix,
+					sub.Endpoint,
+					base64.StdEncoding.EncodeToString(sub.SignatureKey[:8])))
 			}
 			s.WriteString("\n(Press 'a' to accept first, 'r' to reject first)\n")
 		}

@@ -200,7 +200,7 @@ func main() {
 			log.Fatalf("Failed to load community file: %v", err)
 		}
 		comm = &c
-		communityUUID = comm.UID
+		communityUUID = comm.UUID
 	}
 
 	// TUI Execution
@@ -210,7 +210,7 @@ func main() {
 
 	// If we are the owner, start the subscription listener
 	if comm != nil && m.ClientKeys.SigningKey != nil {
-		log.Printf("Community loaded: %s", comm.UID)
+		log.Printf("Community loaded: %s", comm.UUID)
 		// Verify if we are the owner
 		myPubKey := m.ClientKeys.SigningKey.Public().(ed25519.PublicKey)
 		if bytes.Equal(myPubKey, comm.Owner.SignatureKey) {

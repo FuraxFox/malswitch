@@ -59,7 +59,7 @@ func TestCommunityPersistence(t *testing.T) {
 	}
 
 	community := Community{
-		UID:         "test-123",
+		UUID:        "test-123",
 		Threshold:   "Low",
 		RequestKind: true,
 		Members: []aiq_message.MessageContact{
@@ -93,8 +93,8 @@ func TestCommunityPersistence(t *testing.T) {
 	}
 
 	// Basic check to ensure content loaded correctly
-	if loadedCommunity.UID != community.UID {
-		t.Errorf("Loaded UID mismatch: got %s, want %s", loadedCommunity.UID, community.UID)
+	if loadedCommunity.UUID != community.UUID {
+		t.Errorf("Loaded UID mismatch: got %s, want %s", loadedCommunity.UUID, community.UUID)
 	}
 }
 
@@ -110,7 +110,7 @@ func TestVerifyFailure(t *testing.T) {
 
 	// Create base community
 	community := Community{
-		UID:         "test-456",
+		UUID:        "test-456",
 		Threshold:   "High",
 		RequestKind: false,
 		Members:     []aiq_message.MessageContact{},
@@ -133,7 +133,7 @@ func TestVerifyFailure(t *testing.T) {
 		{
 			name: "Content tampering (changing UID)",
 			mutate: func(c *Community) {
-				c.UID = "tampered-456"
+				c.UUID = "tampered-456"
 			},
 			expectErr: true,
 		},
@@ -220,7 +220,7 @@ func TestLoadFailure(t *testing.T) {
 	}
 
 	community := Community{
-		UID: "bad-sig-test", Threshold: "High", RequestKind: false,
+		UUID: "bad-sig-test", Threshold: "High", RequestKind: false,
 		Owner: *ownerContact,
 	}
 	community.Sign(ownerPrivKey)
@@ -263,7 +263,7 @@ func TestCommunityMessages(t *testing.T) {
 	tmpDir := t.TempDir()
 	communityFile := filepath.Join(tmpDir, "community.json")
 	community := Community{
-		UID:   "comm-1",
+		UUID:  "comm-1",
 		Owner: *ownerContact,
 	}
 	if err := community.Sign(ownerPriv); err != nil {

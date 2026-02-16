@@ -15,7 +15,7 @@ func HandleCommunityUpdateMessage(rawJSON []byte, decryptionKey []byte, signingK
 	community, sender, err := receiveCommunityUpdate(rawJSON, decryptionKey, correspondents)
 	if err != nil {
 		// something was wrong sending error
-		envelope, _ := NewErrorRequest(community.UID, "invalid community update")
+		envelope, _ := NewErrorRequest(community.UUID, "invalid community update")
 		payload, _ := envelope.Serialize()
 		errMsg, err2 := aiq_message.GenerateMessage(payload, signingKey, []aiq_message.MessageContact{*sender})
 		if err2 != nil {
@@ -25,7 +25,7 @@ func HandleCommunityUpdateMessage(rawJSON []byte, decryptionKey []byte, signingK
 	}
 
 	// generate acknowledge answer
-	respEnv, _ := NewCommunityUpdateAcceptedRequest(community.UID)
+	respEnv, _ := NewCommunityUpdateAcceptedRequest(community.UUID)
 	respPayload, _ := respEnv.Serialize()
 	msg, err := aiq_message.GenerateMessage(respPayload, signingKey, []aiq_message.MessageContact{*sender})
 	if err != nil {
