@@ -1,10 +1,11 @@
 TARGETS := \
-    github.com/FuraxFox/malswitch/cmd/subgateway  \
-	github.com/FuraxFox/malswitch/cmd/subanalyzer \
-	github.com/FuraxFox/malswitch/cmd/exchanger   \
-	github.com/FuraxFox/malswitch/cmd/catbrowser \
-	github.com/FuraxFox/malswitch/cmd/searchhead \
+    github.com/FuraxFox/malswitch/cmd/subgateway   \
+	github.com/FuraxFox/malswitch/cmd/subanalyzer  \
+	github.com/FuraxFox/malswitch/cmd/exchanger    \
+	github.com/FuraxFox/malswitch/cmd/catbrowser   \
+	github.com/FuraxFox/malswitch/cmd/searchhead   \
 	github.com/FuraxFox/malswitch/cmd/searchclient \
+	github.com/FuraxFox/malswitch/cmd/commgr       \
 	github.com/FuraxFox/malswitch/cmd/keygen 
 
 

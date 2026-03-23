@@ -62,11 +62,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case subscriptionMsg:
-		m.subscriptionQueue = append(m.subscriptionQueue, *msg.member)
-		return m, nil
-	}
-
 	switch m.stage {
 	case stageSelect:
 		return m.handleSelectStage(msg)
