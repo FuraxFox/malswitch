@@ -9,16 +9,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/FuraxFox/malswitch/internal/aiq"
 	"github.com/FuraxFox/malswitch/internal/aiq_message"
 	tea "github.com/charmbracelet/bubbletea"
-)
-
-var (
-	// HTTP client
-	httpClient = &http.Client{Timeout: 15 * time.Second}
 )
 
 type subscriptionMsg struct {

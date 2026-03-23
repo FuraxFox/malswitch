@@ -33,12 +33,15 @@ type model struct {
 	ServerURL     string
 	ClientKeys    aiq_message.PrivateKeySet
 	ServerContact aiq_message.MessageContact // Server's public key info
+	Client        *aiq.AIQHTTPClient
 
 	// Community management
 	community         *aiq.Community
 	communityFile     string
 	subscriptionQueue []aiq_message.MessageContact
 }
+
+const DefaultServerURL = "http://localhost:8080/decrypt"
 
 func main() {
 	log.SetFlags(log.Ltime) // Use original log settings
@@ -51,7 +54,7 @@ func main() {
 
 	clientPrivFile := os.Args[1]
 	serverPubKeyFile := os.Args[2]
-	serverURL := "http://localhost:8080/decrypt"
+	serverURL := DefaultServerURL
 	if len(os.Args) >= 4 {
 		serverURL = os.Args[3]
 	}
