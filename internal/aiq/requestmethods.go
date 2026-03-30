@@ -64,6 +64,34 @@ func NewCommunityUpdateRequest(community Community) (*RequestEnveloppe, error) {
 	return &enveloppe, nil
 }
 
+func NewGetMessagesRequest(communityUUID string) (*RequestEnveloppe, error) {
+	return &RequestEnveloppe{
+		CommunityUUID: communityUUID,
+		Type:          GetMessagesRequestType,
+		GetMessages:   &GetMessagesRequest{},
+	}, nil
+}
+
+func NewGetMessagesResponse(communityUUID string, messages []aiq_message.EncryptedMessage) (*RequestEnveloppe, error) {
+	return &RequestEnveloppe{
+		CommunityUUID: communityUUID,
+		Type:          GetMessagesResponseType,
+		GetMessagesResp: &GetMessagesResponse{
+			Messages: messages,
+		},
+	}, nil
+}
+
+func NewPostMessageResponse(communityUUID string, status string) (*RequestEnveloppe, error) {
+	return &RequestEnveloppe{
+		CommunityUUID: communityUUID,
+		Type:          PostMessageResponseType,
+		PostMessageResp: &PostMessageResponse{
+			Status: status,
+		},
+	}, nil
+}
+
 func NewCommunityUpdateAcceptedRequest(communityUUID string) (*RequestEnveloppe, error) {
 	enveloppe := RequestEnveloppe{
 		CommunityUUID: communityUUID,

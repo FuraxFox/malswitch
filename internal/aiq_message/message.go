@@ -10,11 +10,12 @@ import (
 
 // EncryptedMessage holds the final message structure, with binary fields encoded in Base64 for transport.
 type EncryptedMessage struct {
-	Version     int
-	Data        string   // Base64 encoded ciphertext + nonce
-	Signature   string   // Base64 encoded ed25519 signature of the normalized message
-	WrappedKeys []string // List of Base64 encoded wrapped symmetric keys (one per recipient)
-	Sender      MessageContact
+	Version       int
+	Data          string   // Base64 encoded ciphertext + nonce
+	Signature     string   // Base64 encoded ed25519 signature of the normalized message
+	WrappedKeys   []string // List of Base64 encoded wrapped symmetric keys (one per recipient)
+	RecipientKeys []string // List of Base64 encoded Ed25519 public signature keys of recipients
+	Sender        MessageContact
 }
 
 // Receive a JSON encoded message, decode it, verify signature and return the payload, the sender and the eventual error
