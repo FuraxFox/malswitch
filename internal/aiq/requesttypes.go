@@ -45,4 +45,7 @@ const (
 	CommunitySubscribeRequestType    = "community-subscribe-request"
 	CommunitySubscriptionQueuedRequestType = "community-subscription-queued"
 	CommunityChangeResultRequestType = "community-change-request"
+	GetMessagesRequestType           = "get-messages-request"
+	GetMessagesResponseType          = "get-messages-response"
+	PostMessageResponseType          = "post-message-response"
 )

@@ -194,13 +194,14 @@ func keyUnwrap(sharedSecret, wrappedKey []byte) ([]byte, error) {
 func CreateNormalizedMessage(msg EncryptedMessage) []byte {
 	versionHex := fmt.Sprintf("%02x", msg.Version)
 	wrappedKeysJoined := strings.Join(msg.WrappedKeys, "")
+	recipientKeysJoined := strings.Join(msg.RecipientKeys, "")
 
 	senderKeys := append(msg.Sender.EncryptionKey, msg.Sender.SignatureKey...)
 	senderKeysBase64 := base64.StdEncoding.EncodeToString(senderKeys)
 
 	dataBase64 := msg.Data
 
-	normalizedString := versionHex + wrappedKeysJoined + senderKeysBase64 + dataBase64
+	normalizedString := versionHex + wrappedKeysJoined + recipientKeysJoined + senderKeysBase64 + dataBase64
 
 	return []byte(normalizedString)
 }

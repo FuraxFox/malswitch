@@ -7,6 +7,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -42,7 +43,12 @@ func encryptMessage(clearText []byte, signatureKey ed25519.PrivateKey, recipient
 			EncryptionKey: senderX25519Pub,
 			SignatureKey:  senderEd25519Pub,
 		},
-		WrappedKeys: make([]string, 0, len(recipients)),
+		WrappedKeys:   make([]string, 0, len(recipients)),
+		RecipientKeys: make([]string, 0, len(recipients)),
+	}
+
+	for _, recipient := range recipients {
+		msg.RecipientKeys = append(msg.RecipientKeys, base64.StdEncoding.EncodeToString(recipient.SignatureKey))
 	}
 
 	// 3. Encrypt the clear text
@@ -91,8 +97,8 @@ func encryptMessage(clearText []byte, signatureKey ed25519.PrivateKey, recipient
 	return msg, nil
 }
 
-// checkSenderAuthorization verifies if the signing key of a message is in a contact list public signing key
-func checkSenderAuthorization(msg *EncryptedMessage, correspondents []MessageContact) bool {
+// CheckSenderAuthorization verifies if the signing key of a message is in a contact list public signing key
+func CheckSenderAuthorization(msg *EncryptedMessage, correspondents []MessageContact) bool {
 
 	for _, contact := range correspondents {
 		if bytes.Equal(msg.Sender.SignatureKey, contact.SignatureKey) {
@@ -102,13 +108,39 @@ func checkSenderAuthorization(msg *EncryptedMessage, correspondents []MessageCon
 	return false
 }
 
+// VerifyAIQMessageSignature verifies the AIQ message signature.
+func VerifyAIQMessageSignature(rawJSON []byte) (EncryptedMessage, error) {
+	var msg EncryptedMessage
+	if err := json.Unmarshal(rawJSON, &msg); err != nil {
+		return EncryptedMessage{}, fmt.Errorf("failed to parse encrypted response JSON: %w", err)
+	}
+
+	if msg.Version != 1 {
+		return EncryptedMessage{}, errors.New("unsupported message version")
+	}
+
+	// Prepare signature verification: decode signature, compute normalized version of the message
+	normalizedMessage := CreateNormalizedMessage(msg)
+	decodedSignature, err := base64.StdEncoding.DecodeString(msg.Signature)
+	if err != nil {
+		return EncryptedMessage{}, fmt.Errorf("failed to decode Base64 signature: %w", err)
+	}
+
+	// Verify signature
+	if !ed25519.Verify(msg.Sender.SignatureKey, normalizedMessage, decodedSignature) {
+		return EncryptedMessage{}, errors.New("signature verification failed")
+	}
+
+	return msg, nil
+}
+
 // decryptMessage verifies the message, unwraps the key, and decrypts the ciphertext.
 func decryptMessage(msg EncryptedMessage, decryptionKey []byte, correspondents []MessageContact) ([]byte, error) {
 	if msg.Version != 1 {
 		return nil, errors.New("unsupported message version")
 	}
 
-	if !checkSenderAuthorization(&msg, correspondents) {
+	if !CheckSenderAuthorization(&msg, correspondents) {
 		return nil, fmt.Errorf("message unacceptable: unknown sender")
 	}
 

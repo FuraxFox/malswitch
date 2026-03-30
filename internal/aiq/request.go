@@ -20,6 +20,18 @@ type CommunitySubscribeRequest struct {
 	Member aiq_message.MessageContact `json:"member"`
 }
 
+type GetMessagesRequest struct {
+	// Requesters identify themselves via the AIQ message signature
+}
+
+type GetMessagesResponse struct {
+	Messages []aiq_message.EncryptedMessage `json:"messages"`
+}
+
+type PostMessageResponse struct {
+	Status string `json:"status"`
+}
+
 type SearchSubmitRequest struct {
 	Type     string      `json:"type"`                // e.g., "IP_LIST", "HASH_LIST", "YARA_RULE", "GENERIC_STRING"
 	IPs      []string    `json:"ips,omitempty"`       // Used for IP_LIST
@@ -49,4 +61,7 @@ type RequestEnveloppe struct {
 	SearchReference    *SearchReferenceRequest    `json:"search_reference_request,omitempty"`
 	CommunityUpdate    *CommunityUpdateRequest    `json:"community_update_request,omitempty"`
 	CommunitySubscribe *CommunitySubscribeRequest `json:"community_subscribe_request,omitempty"`
+	GetMessages        *GetMessagesRequest        `json:"get_messages_request,omitempty"`
+	GetMessagesResp    *GetMessagesResponse       `json:"get_messages_response,omitempty"`
+	PostMessageResp    *PostMessageResponse       `json:"post_message_response,omitempty"`
 }
