@@ -6,6 +6,7 @@ TARGETS := \
 	github.com/FuraxFox/malswitch/cmd/searchhead   \
 	github.com/FuraxFox/malswitch/cmd/searchclient \
 	github.com/FuraxFox/malswitch/cmd/commgr       \
+	github.com/FuraxFox/malswitch/cmd/commbroker   \
 	github.com/FuraxFox/malswitch/cmd/keygen 
 
 
@@ -24,26 +25,6 @@ all: $(TARGETS)
 $(TARGETS):
 	@echo "building $@ : $(notdir $@)"
 	go build -o $(BUILD_DIR)/$(notdir $@) $@
-
-keygen: github.com/FuraxFox/malswitch/cmd/keygen
-	@echo "keygen built"
-
-
-search:	github.com/FuraxFox/malswitch/cmd/searchhead 	github.com/FuraxFox/malswitch/cmd/searchclient
-	@echo "search built"
-
-subgateway: github.com/FuraxFox/malswitch/cmd/subgateway  
-	@echo "subgateway built"
-
-subanalyzer: github.com/FuraxFox/malswitch/cmd/subanalyzer 
-	@echo "subanalyzer built"
-
-exchanger: github.com/FuraxFox/malswitch/cmd/exchanger   
-	@echo "echanger built"
-
-catbrowser:	github.com/FuraxFox/malswitch/cmd/catbrowser 
-	@echo "catbrowser built"
-	
 
 # Run tests for all targets
 test: test_$(TARGETS)
