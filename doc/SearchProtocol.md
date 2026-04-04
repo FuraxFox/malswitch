@@ -13,11 +13,12 @@ AIQ messages are signed encrypted and signed messages.
 
 ```go
 type EncryptedMessage struct {
-	Version     int
-	Data        string   
-	Signature   string   
-	WrappedKeys []string 
-	Sender      MessageContact
+	Version       int
+	Data          string   // Base64 encoded ciphertext + nonce
+	Signature     string   // Base64 encoded ed25519 signature of the normalized message
+	WrappedKeys   []string // List of Base64 encoded wrapped symmetric keys (one per recipient)
+	RecipientKeys []string // List of Base64 encoded Ed25519 public signature keys of recipients
+	Sender        MessageContact
 }
 ```
 
@@ -29,27 +30,40 @@ Where
 * `WrappedKeys`is a list of base64 encoded wrapped symmetric keys (one per recipient)
 * `Sender` is a public key pair of the message sender
 
-## AIQ Wrapper message
+## AIQ Request Envelope message
 
 ```go
-type Request struct {
-    Community uuid
-    Type      string
-    Payload {}
-
+type RequestEnveloppe struct {
+	CommunityUUID      string                     `json:"community_uuid"`
+	Type               RequestType                `json:"request_type"`
+	Error              *ErrorRequest              `json:"error,omitempty"`
+	SubmitRequest      *SearchSubmitRequest       `json:"submit_request,omitempty"`
+	ResultRequest      *SearchResultRequest       `json:"result_request,omitempty"`
+	SearchReference    *SearchReferenceRequest    `json:"search_reference_request,omitempty"`
+	CommunityUpdate    *CommunityUpdateRequest    `json:"community_update_request,omitempty"`
+	CommunitySubscribe *CommunitySubscribeRequest `json:"community_subscribe_request,omitempty"`
+	GetMessages        *GetMessagesRequest        `json:"get_messages_request,omitempty"`
+	GetMessagesResp    *GetMessagesResponse       `json:"get_messages_response,omitempty"`
+	PostMessageResp    *PostMessageResponse       `json:"post_message_response,omitempty"`
 }
 ```
 
-Where Type can be 
-* `Error`, 
-* `SearchSubmit`, 
-* `SearchAccepted`, 
-* `SearchResultPull`, 
-* `SearchResult`, 
-* `CommunityRefresh`, 
-* `CommunityResign`, 
-* `CommunityUpdate`, 
-* `CommunityChangeResult`
+Where `RequestType` can be:
+* `error-request`
+* `search-submit-request`
+* `search-accepted-request`
+* `search-pull-request`
+* `search-result-request`
+* `community-refresh-request`
+* `community-resign-request`
+* `community-update-request`
+* `community-update-accepted`
+* `community-subscribe-request`
+* `community-subscription-queued`
+* `community-change-request`
+* `get-messages-request`
+* `get-messages-response`
+* `post-message-response`
 
 ## Community management sub-protocol description
 
@@ -181,6 +195,45 @@ Client                                                       Searchhead
 <process result>      <=======(SearchResultRequest)======== <generate result>
 ```
 
+## Community Broker: Asynchronous message exchange
+
+A community broker acts as a central mailbox for community messages. Members can post messages for others and retrieve messages intended for them.
+
+### Posting a message to the broker
+
+Any member can post an `EncryptedMessage` to the broker. The broker stores it and notifies the recipient(s) when they poll for messages.
+
+```
+Sender                                                     Broker
+--------------------                                       -----------------
+<generate message>   =========(AIQ Message)==============> <verify signature>
+<process result>     <======(PostMessageResponse)========= <store message>
+```
+
+### Retrieving messages from the broker
+
+Members periodically poll the broker to retrieve messages intended for them.
+
+```
+Recipient                                                  Broker
+--------------------                                       -----------------
+<generate poll req>  =========(GetMessagesRequest)========> <verify signature>
+<decrypt messages>   <========(GetMessagesResponse)======== <fetch messages>
+```
+
+### Search via Broker
+
+The *SearchHead* can poll the broker for `SearchSubmitRequest` and post results back to the broker.
+
+```
+Client               Broker              SearchHead
+-----------------    --------------      -----------------
+<post search>  ===>  <store search>
+                     <wait poll>   <===  <poll broker>
+                     <deliver search>==> <process search>
+<poll broker>  <===  <store result>  <===  <post result>
+<get result>
+```
 
 
 
