@@ -1,7 +1,12 @@
-# Architecture
+## Backend architecture
+
+This document explains the backend architecture of the malware storage and indexation.
+
+
+## Architecture
 
 ```
-       <user>                        <user>                                           <user>                                  <user>
+    <local-user>                 <local-user>                                     <local-user>                             <local-user>
           |                            ^                                                ^                                        ^
           |                            |                                                |                                        |
     (submit malware)             (check status)                                         V                                        |
@@ -119,12 +124,14 @@ None
 
 ### Exchanger
 
-Allows share on a P2P network selected samples for selected identities.
+Binaries made available
+
+## Search head
+
+The search is the point of search implementing the AIQ protocol searches.
+See <aiq_architecture.md> for the details.
 
 
-#### Exposed API
-
-* `exchanger/*` TODO
 
 #### Files
 
