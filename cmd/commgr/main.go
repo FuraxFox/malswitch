@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -44,31 +45,39 @@ type model struct {
 	subscriptionQueue []aiq_message.MessageContact
 }
 
-const DefaultServerURL = "http://localhost:8080/decrypt"
+const DefaultServerURL = "http://localhost:8080/com-manager"
 
 func main() {
-	log.SetFlags(log.Ltime) // Use original log settings
+	log.SetFlags(log.Ltime)
 
-	// Parse Arguments (Original CLI structure)
-	if len(os.Args) < 3 {
-		fmt.Printf("Usage: %s <client_priv_file> <server_pub_file> [server_url] [community_file]\n", os.Args[0])
+	// Define flags
+	// Usage: ./app -client-priv=path -server-pub=path [-url=url] [-community=path]
+	clientPrivFile := flag.String("client-priv", "", "Path to the client private key file (Required)")
+	serverPubKeyFile := flag.String("server-pub", "", "Path to the server public key file (Required)")
+	communityFile := flag.String("community", "", "Path to the community JSON file")
+	serverURL := flag.String("url", DefaultServerURL, "The URL that the manager listens on")
+
+	// Custom Usage message
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		flag.PrintDefaults()
+	}
+
+	flag.Parse()
+
+	// Validation for required flags
+	if *clientPrivFile == "" || *serverPubKeyFile == "" {
+		fmt.Println("Error: client-priv and server-pub are required.")
+		flag.Usage()
 		os.Exit(1)
 	}
 
-	clientPrivFile := os.Args[1]
-	serverPubKeyFile := os.Args[2]
-	serverURL := DefaultServerURL
-	if len(os.Args) >= 4 {
-		serverURL = os.Args[3]
-	}
-
-	var communityFile string
 	var comm *aiq.Community
 	communityUUID := "UNDEFINED"
 
-	if len(os.Args) >= 5 {
-		communityFile = os.Args[4]
-		c, err := aiq.LoadCommunity(communityFile)
+	// Logic for Community File
+	if *communityFile != "" {
+		c, err := aiq.LoadCommunity(*communityFile)
 		if err != nil {
 			log.Fatalf("Failed to load community file: %v", err)
 		}
@@ -78,24 +87,24 @@ func main() {
 
 	// TUI Execution
 	fmt.Println("Starting Secure Message Community Manager...")
-	m := initialModel(serverURL, communityUUID, clientPrivFile, serverPubKeyFile, communityFile, comm)
+
+	// Note: We dereference the pointers (*flagName) to get the string values
+	m := initialModel(*serverURL, communityUUID, *clientPrivFile, *serverPubKeyFile, *communityFile, comm)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
-	// If we are the owner, start the subscription listener
+	// Owner logic
 	if comm != nil && m.ClientKeys.SigningKey != nil {
 		log.Printf("Community loaded: %s", comm.UUID)
-		// Verify if we are the owner
 		myPubKey := m.ClientKeys.SigningKey.Public().(ed25519.PublicKey)
 		if bytes.Equal(myPubKey, comm.Owner.SignatureKey) {
 			log.Printf("We are the owner of the community, starting listener...")
 			go startSubscriptionServer(p, m.ClientKeys, comm)
 		} else {
-			log.Printf("We are NOT the owner of the community. My key: %x, Owner key: %x", myPubKey, comm.Owner.SignatureKey)
+			log.Printf("We are NOT the owner. My key: %x, Owner key: %x", myPubKey, comm.Owner.SignatureKey)
 		}
 	}
 
 	if _, err := p.Run(); err != nil {
 		log.Fatalf("Alas, there's been an error: %v", err)
 	}
-
 }
