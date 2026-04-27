@@ -6,28 +6,43 @@
 package main
 
 import (
+	"flag"
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
 )
 
-var LISTEN_CATALOG_PATH string = "/catalog"
-var LISTEN_TAGS_PATH string = "/tags"
-var LISTEN_DOWNLOAD_PATH string = "/download"
-var LISTEN_ADDR string = "127.0.0.1:8081"
-var CATALOG_DIR string = "var/data/catalog"
-var DB_PATH string = "var/databases/catalog.db"
+const CATALOG_URI_PATH = "/catalog"
+const DOWNLOAD_URI_PATH = "/download"
+const TAGS_URI_PATH = "/tags"
+const DEFAULT_LISTEN_ADDRESS = "127.0.0.1:8081"
+const DEFAULT_CATALOG_DIR = "var/data/catalog"
+const DEFAULT_DB_PATH = "var/databases/catalog.db"
 
 func main() {
 	log.SetLevel(log.DebugLevel)
 
+	// Command line flags
+	listenAddr := flag.String("addr", DEFAULT_LISTEN_ADDRESS, "Address to listen on")
+	catalogDir := flag.String("dir", DEFAULT_CATALOG_DIR, "Directory containing the catalog data")
+	dbPath := flag.String("db", DEFAULT_DB_PATH, "Path to the SQLite database")
+
+	catalogPath := CATALOG_URI_PATH
+	downloadPath := DOWNLOAD_URI_PATH
+	//tagsPath := TAGS_URI_PATH
+
+	// 2. Parse the flags
+	flag.Parse()
+
+	// 3. Assign flag values to your context
+	// Note: we must dereference the pointers (using *)
 	ctx := CatalogBrowserContext{
-		CatalogDir:               CATALOG_DIR,
-		DbPath:                   DB_PATH,
-		ServerListenAddr:         LISTEN_ADDR,
-		ServerCatalogListenPath:  LISTEN_CATALOG_PATH,
-		ServerDownloadListenPath: LISTEN_DOWNLOAD_PATH,
-		//ServerTagsListenPath:     LISTEN_TAGS_PATH,
+		CatalogDir:               *catalogDir,
+		DbPath:                   *dbPath,
+		ServerListenAddr:         *listenAddr,
+		ServerCatalogListenPath:  catalogPath,
+		ServerDownloadListenPath: downloadPath,
+		// ServerTagsListenPath:  *tagsPath,
 	}
 
 	err := ctx.OpenDB()
@@ -36,23 +51,21 @@ func main() {
 	}
 	defer ctx.CloseDB()
 
-	log.Debug("Starting catalog browser on " +
-		ctx.ServerListenAddr + "/" + ctx.ServerCatalogListenPath +
-		" queue_dir:'" + ctx.CatalogDir + "' ")
+	log.Debugf("Starting catalog browser on %s%s queue_dir: '%s'",
+		ctx.ServerListenAddr, ctx.ServerCatalogListenPath, ctx.CatalogDir)
 
+	// 4. Set up Handlers
 	http.DefaultServeMux.HandleFunc(ctx.ServerDownloadListenPath,
 		func(w http.ResponseWriter, r *http.Request) {
 			DownloadRequestHandler(w, r, &ctx)
 		})
+
 	http.DefaultServeMux.HandleFunc(ctx.ServerCatalogListenPath,
 		func(w http.ResponseWriter, r *http.Request) {
 			CatalogBrowserRequestHandler(w, r, &ctx)
 		})
-	/*
-	   http.DefaultServeMux.HandleFunc(ctx.ServerTagsListenPath,
 
-	   	func(w http.ResponseWriter, r *http.Request) {
-	   		TagsRequestHandler(w, r, &ctx)
-	   	})
-	*/log.Fatal(http.ListenAndServe(LISTEN_ADDR, nil))
+	// 5. Start Server
+	// Use the variable from the flag for ListenAndServe
+	log.Fatal(http.ListenAndServe(ctx.ServerListenAddr, nil))
 }
