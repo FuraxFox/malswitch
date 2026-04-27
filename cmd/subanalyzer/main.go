@@ -6,30 +6,40 @@
 package main
 
 import (
+	"flag"
 	"os"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
-var QUEUE_DIR string = "var/data/submissions"
-var TEMP_DIR string = "var/data/temp"
-var CATALOG_DIR string = "var/data/catalog"
-var DB_PATH string = "var/databases/catalog.db"
+var DEFAULT_QUEUE_DIR string = "var/data/submissions"
+var DEFAULT_TEMP_DIR string = "var/data/temp"
+var DEFAULT_CATALOG_DIR string = "var/data/catalog"
+var DEFAULT_DB_PATH string = "var/databases/catalog.db"
 
 func main() {
+	// 1. Define flags with your original constants as default values
+	queueDir := flag.String("queue", DEFAULT_QUEUE_DIR, "Directory to watch for new submissions")
+	tempDir := flag.String("temp", DEFAULT_TEMP_DIR, "Directory for temporary processing")
+	catalogDir := flag.String("catalog", DEFAULT_CATALOG_DIR, "Directory where analyzed malware is stored")
+	dbPath := flag.String("db", DEFAULT_DB_PATH, "Path to the SQLite catalog database")
+
+	// 2. Parse the flags
+	flag.Parse()
 
 	log.SetLevel(log.DebugLevel)
 
+	// 3. Initialize context using the dereferenced flag values
 	ctx := SubmissionAnalyzerContext{
-		CatalogDir:     CATALOG_DIR,
-		TempDir:        TEMP_DIR,
-		SubmissionsDir: QUEUE_DIR,
-		DbPath:         DB_PATH,
+		CatalogDir:     *catalogDir,
+		TempDir:        *tempDir,
+		SubmissionsDir: *queueDir,
+		DbPath:         *dbPath,
 	}
 
-	log.Debug("Starting submission-analyzer on queue_dir:" +
-		"'" + QUEUE_DIR + "' temp_dir:'" + TEMP_DIR + "' cat_dir:'" + DB_PATH + "'")
+	log.Debugf("Starting submission-analyzer: queue='%s', temp='%s', db='%s'",
+		ctx.SubmissionsDir, ctx.TempDir, ctx.DbPath)
 
 	err := ctx.OpenDB()
 	if err != nil {
@@ -37,27 +47,34 @@ func main() {
 	}
 	defer ctx.CloseDB()
 
-	// Create outgoing directory if it doesn't exist
+	// 4. Create catalog directory if it doesn't exist
 	err = os.MkdirAll(ctx.CatalogDir, os.ModePerm)
 	if err != nil {
-		log.Error("error creating outgoing directory("+ctx.CatalogDir+"):", err)
+		log.Errorf("error creating catalog directory (%s): %v", ctx.CatalogDir, err)
 		return
 	}
-	log.Info("starting to analyse from queue '" + ctx.SubmissionsDir + "'")
+
+	log.Infof("Starting to analyze from queue '%s'", ctx.SubmissionsDir)
+
+	// 5. Main Processing Loop
 	for {
 		queue, err := ctx.ReadSubmissions()
 		if err != nil {
-			log.Error("error reading submissions queue:", err)
-			return
+			log.Errorf("error reading submissions queue: %v", err)
+			time.Sleep(2 * time.Second) // Wait a bit before retrying on error
+			continue
 		}
+
 		for _, s := range queue {
-			log.Info("processing submission " + s.UUID)
+			log.Infof("processing submission %s", s.UUID)
 			err = ctx.ProcessSubmission(s)
 			if err != nil {
-				log.Error("error processing submission:", err)
-				return
+				log.Errorf("error processing submission %s: %v", s.UUID, err)
+				// Depending on your logic, you might want to continue to the next one
+				continue
 			}
 		}
+
 		time.Sleep(100 * time.Millisecond)
 	}
 }
