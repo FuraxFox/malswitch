@@ -1,86 +1,108 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
 )
 
-func usage(commandname string) {
-	fmt.Printf("%s - a tool to manage keys, contacts and communities for AIQ system\n", commandname)
-	fmt.Println("\nUsage:")
-	fmt.Printf("   %s keygen  <contact_name>\n", commandname)
-	fmt.Printf("   %s contgen <contact_name> <contact endpoint>\n", commandname)
-	fmt.Printf("   %s comcrea <owner private key file>  <owner contact file>> <threshold> <community file>\n", commandname)
-	fmt.Printf("   %s comadd  <owner private key file> <community file> <member_signature_pubkey_file> <member_encryption_pubkey_file> <member endpoint>\n", commandname)
-	fmt.Printf("   %s comdel  <owner private key file> <community file> <member_signature_pubkey_file> <member_encryption_pubkey_file>\n", commandname)
-	fmt.Println("\nExample: ")
-	fmt.Printf("   %s keygen Alice  \n", commandname)
-	fmt.Printf("   %s contcrea Alice 'https://:8888' \n", commandname)
-	fmt.Printf("   %s comcrea owner_key.priv mycommunity.cmy \n", commandname)
-	fmt.Printf("   %s comadd  owner_key.priv  mycommunity.cmy bob.ctc \n", commandname)
-	fmt.Printf("   %s comdel  owner_key.priv  mycommunity.cmy bob.ctc \n", commandname)
-	fmt.Println("")
-}
-
 func main() {
+	// Define Subcommands using FlagSets
+	keygenCmd := flag.NewFlagSet("keygen", flag.ExitOnError)
+	keygenName := keygenCmd.String("name", "", "Contact name (Required)")
+
+	contcreaCmd := flag.NewFlagSet("contcrea", flag.ExitOnError)
+	contName := contcreaCmd.String("name", "", "Contact name (Required)")
+	contEnd := contcreaCmd.String("endpoint", "", "Contact endpoint URL (Required)")
+
+	comcreaCmd := flag.NewFlagSet("comcrea", flag.ExitOnError)
+	comCreaOwnerKey := comcreaCmd.String("owner-key", "", "Owner private key file (Required)")
+	comCreaOwnerCont := comcreaCmd.String("owner-cont", "", "Owner contact file (Required)")
+	comCreaThreshold := comcreaCmd.String("threshold", "1", "Threshold value")
+	comCreaFile := comcreaCmd.String("file", "", "Community file output (Required)")
+
+	comaddCmd := flag.NewFlagSet("comadd", flag.ExitOnError)
+	comAddOwnerKey := comaddCmd.String("owner-key", "", "Owner private key file (Required)")
+	comAddFile := comaddCmd.String("file", "", "Community file (Required)")
+	comAddMember := comaddCmd.String("member", "", "Member contact file (Required)")
+
+	comdelCmd := flag.NewFlagSet("comdel", flag.ExitOnError)
+	comDelOwnerKey := comdelCmd.String("owner-key", "", "Owner private key file (Required)")
+	comDelFile := comdelCmd.String("file", "", "Community file (Required)")
+	comDelMember := comdelCmd.String("member", "", "Member contact file (Required)")
+
+	// Check if an action was provided
 	if len(os.Args) < 2 {
-		commandname := os.Args[0]
-		usage(commandname)
+		printGlobalUsage()
 		os.Exit(1)
 	}
 
-	action := os.Args[1]
+	// Switch on the subcommand
+	switch os.Args[1] {
 
-	switch action {
 	case "keygen":
-		contactName := os.Args[2]
-		err := doKeyGen(contactName)
-		if err != nil {
-			log.Fatalf("Error while generating key for '%s' : %v", contactName, err)
+		keygenCmd.Parse(os.Args[2:])
+		if *keygenName == "" {
+			keygenCmd.Usage()
+			os.Exit(1)
 		}
+		handleError(doKeyGen(*keygenName), "keygen")
+
 	case "contcrea":
-		contactName := os.Args[2]
-		contactEndpoint := os.Args[3]
-		err := doContactGen(contactName, contactEndpoint)
-		if err != nil {
-			log.Fatalf("Error while generating contact for '%s' : %v", contactName, err)
+		contcreaCmd.Parse(os.Args[2:])
+		if *contName == "" || *contEnd == "" {
+			contcreaCmd.Usage()
+			os.Exit(1)
 		}
+		handleError(doContactGen(*contName, *contEnd), "contcrea")
 
 	case "comcrea":
-		ownerKey := os.Args[2]
-		ownerFile := os.Args[3]
-		thresold := os.Args[4]
-		communityFile := os.Args[5]
-
-		err := doCommunityCreate(ownerKey, ownerFile, communityFile, thresold)
-		if err != nil {
-			log.Fatalf("Failed to create community '%s' : %v", communityFile, err)
+		comcreaCmd.Parse(os.Args[2:])
+		if *comCreaOwnerKey == "" || *comCreaFile == "" {
+			comcreaCmd.Usage()
+			os.Exit(1)
 		}
+		handleError(doCommunityCreate(*comCreaOwnerKey, *comCreaOwnerCont, *comCreaFile, *comCreaThreshold), "comcrea")
+
 	case "comadd":
-		ownerKey := os.Args[2]
-		communityFile := os.Args[3]
-		memberFile := os.Args[4]
-
-		err := doCommunityAppend(ownerKey, communityFile, memberFile)
-		if err != nil {
-			log.Fatalf("Failed to add member do community '%s' : %v", communityFile, err)
+		comaddCmd.Parse(os.Args[2:])
+		if *comAddOwnerKey == "" || *comAddFile == "" || *comAddMember == "" {
+			comaddCmd.Usage()
+			os.Exit(1)
 		}
+		handleError(doCommunityAppend(*comAddOwnerKey, *comAddFile, *comAddMember), "comadd")
 
 	case "comdel":
-		ownerKey := os.Args[2]
-		communityFile := os.Args[3]
-		memberFile := os.Args[4]
-
-		err := doCommunityRemove(ownerKey, communityFile, memberFile)
-		if err != nil {
-			log.Fatalf("Failed to delete member from community '%s' : %v", communityFile, err)
+		comdelCmd.Parse(os.Args[2:])
+		if *comDelOwnerKey == "" || *comDelFile == "" || *comDelMember == "" {
+			comdelCmd.Usage()
+			os.Exit(1)
 		}
+		handleError(doCommunityRemove(*comDelOwnerKey, *comDelFile, *comDelMember), "comdel")
+
 	default:
-		commandname := os.Args[0]
-		usage(commandname)
-
-		log.Fatalf("Un supported option '%s' ", action)
+		fmt.Printf("Unknown subcommand: %s\n", os.Args[1])
+		printGlobalUsage()
+		os.Exit(1)
 	}
+}
 
+// Helper to reduce boilerplate error checking
+func handleError(err error, cmd string) {
+	if err != nil {
+		log.Fatalf("Error during %s: %v", cmd, err)
+	}
+}
+
+func printGlobalUsage() {
+	fmt.Printf("AIQ System Management Tool\n\n")
+	fmt.Println("Usage: program <subcommand> [flags]")
+	fmt.Println("\nAvailable Subcommands:")
+	fmt.Println("  keygen   Generate keys for a new contact")
+	fmt.Println("  contcrea Create a contact file")
+	fmt.Println("  comcrea  Initialize a new community")
+	fmt.Println("  comadd   Add a member to a community")
+	fmt.Println("  comdel   Remove a member from a community")
+	fmt.Println("\nUse 'program <subcommand> -h' for more information on a command.")
 }
