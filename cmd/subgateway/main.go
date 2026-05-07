@@ -13,13 +13,13 @@ import (
 )
 
 var DEFAULT_LISTEN_PATH string = "/submissions"
-var DEFAULT_LISTEN_ADDR string = "127.0.0.1:8080"
+var DEFAULT_LISTEN_ADDR string = "127.0.0.1:8043"
 var DEFAULT_QUEUE_DIR string = "var/data/submissions"
 var DEFAULT_TEMP_DIR string = "var/data/temp"
 
 func main() {
 	// 1. Define flags with original values as defaults
-	listenAddr := flag.String("addr", DEFAULT_LISTEN_ADDR, "HTTP server listen address")
+	listenAddr := flag.String("listen", DEFAULT_LISTEN_ADDR, "HTTP server listen address")
 	listenPath := flag.String("path", DEFAULT_LISTEN_PATH, "HTTP endpoint path for submissions")
 	queueDir := flag.String("queue", DEFAULT_QUEUE_DIR, "Directory to store incoming submissions")
 	tempDir := flag.String("temp", DEFAULT_TEMP_DIR, "Directory for temporary file processing")

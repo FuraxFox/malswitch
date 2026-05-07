@@ -15,7 +15,7 @@ import (
 	"crypto/ed25519"
 )
 
-const DEFAULT_LISTEN_ADDRESS = ":8080"
+const DEFAULT_LISTEN_ADDRESS = "127.0.0.1:8042"
 
 var (
 	// Server's X25519 private key for incoming message decryption

@@ -21,7 +21,7 @@ var (
 )
 
 const DEFAULT_MAX_AGE = 3600
-const DEFAULT_LISTEN_ADDRESS = ":8084"
+const DEFAULT_LISTEN_ADDRESS = "127.0.0.1:8044"
 const DEFAULT_KEY_FILE = "commbroker.priv"
 const DEFAULT_DATABASE = "commbroker.db"
 
@@ -29,7 +29,7 @@ func main() {
 	// Define flags
 	commFile := flag.String("community", "", "Path to the community JSON file (Required)")
 	maxAge := flag.Int("max-age", DEFAULT_MAX_AGE, "Maximum age for messages in seconds")
-	listenAddr := flag.String("addr", DEFAULT_LISTEN_ADDRESS, "Address to listen on")
+	listenAddr := flag.String("listen", DEFAULT_LISTEN_ADDRESS, "Address to listen on")
 	keyFile := flag.String("key-file", DEFAULT_KEY_FILE, "Path to the broker private key file")
 	dbFileFlag := flag.String("db-file", DEFAULT_DATABASE, "Path to the broker database file")
 

@@ -15,7 +15,7 @@ import (
 const CATALOG_URI_PATH = "/catalog"
 const DOWNLOAD_URI_PATH = "/download"
 const TAGS_URI_PATH = "/tags"
-const DEFAULT_LISTEN_ADDRESS = "127.0.0.1:8081"
+const DEFAULT_LISTEN_ADDRESS = "127.0.0.1:8045"
 const DEFAULT_CATALOG_DIR = "var/data/catalog"
 const DEFAULT_DB_PATH = "var/databases/catalog.db"
 
@@ -23,7 +23,7 @@ func main() {
 	log.SetLevel(log.DebugLevel)
 
 	// Command line flags
-	listenAddr := flag.String("addr", DEFAULT_LISTEN_ADDRESS, "Address to listen on")
+	listenAddr := flag.String("listen", DEFAULT_LISTEN_ADDRESS, "Address to listen on")
 	catalogDir := flag.String("dir", DEFAULT_CATALOG_DIR, "Directory containing the catalog data")
 	dbPath := flag.String("db", DEFAULT_DB_PATH, "Path to the SQLite database")
 
